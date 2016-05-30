@@ -39,7 +39,6 @@
                 </formats>  
             </configuration>  
         </plugin>  
-  
 	    </plugins>  
 	</build>  
 	
