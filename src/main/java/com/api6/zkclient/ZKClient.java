@@ -38,7 +38,7 @@ import com.api6.zkclient.serializer.ZKSerializer;
 import com.api6.zkclient.watcher.ZKWatcher;
 
 /**
- * ZooKeeper客户端
+ * ZooKeeper客户端 
  * @author: zhaojie/zh_jie@163.com.com 
  */
 public class ZKClient  {
