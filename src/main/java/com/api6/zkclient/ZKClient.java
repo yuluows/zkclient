@@ -39,6 +39,7 @@ import com.api6.zkclient.watcher.ZKWatcher;
 
 /**
  * ZooKeeper客户端 
+ * 断线重连，会话过期处理，永久监听，子节点数据变化监听
  * @author: zhaojie/zh_jie@163.com.com 
  */
 public class ZKClient  {
