@@ -63,7 +63,7 @@ public class ZKDistributedQueueTest {
         
         final List<String> list1 = new ArrayList<String>();
         final List<String> list2 = new ArrayList<String>();
-        for(int i=0;i<20;i++){
+        for(int i=0;i<21;i++){
             Thread thread1 = new Thread(new Runnable() {
                 public void run() {
                     ZKDistributedQueue<String> queue = new ZKDistributedQueue(zkClient, rootPath);
@@ -75,7 +75,7 @@ public class ZKDistributedQueueTest {
         }
         
         //等待事件到达
-        int size1 = TestUtil.waitUntil(20, new Callable<Integer>() {
+        int size1 = TestUtil.waitUntil(21, new Callable<Integer>() {
             @Override
             public Integer call() throws Exception {
                 return list1.size();
@@ -110,5 +110,9 @@ public class ZKDistributedQueueTest {
            }
         }
         assertThat(flag).isTrue();
+        
+        ZKDistributedQueue<String> queue = new ZKDistributedQueue(zkClient, rootPath);
+        assertThat(queue.peek()).isEqualTo(queue.poll());
+        
     }
 }
