@@ -18,7 +18,6 @@ package com.api6.zkclient.exception;
 import org.apache.zookeeper.KeeperException;
 
 public class ZKNodeExistsException extends ZKException {
-
     private static final long serialVersionUID = 1L;
 
     public ZKNodeExistsException() {

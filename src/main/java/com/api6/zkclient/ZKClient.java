@@ -58,156 +58,156 @@ import com.api6.zkclient.watcher.ZKWatcher;
  * @author: zhaojie/zh_jie@163.com.com 
  */
 public class ZKClient  {
-	private static Logger LOG = LoggerFactory.getLogger(ZKClient.class);
-	
-	//子节点监听器
-	private final Map<String, CopyOnWriteArraySet<ZKListener>> childListenerMap = new ConcurrentHashMap<String, CopyOnWriteArraySet<ZKListener>>();
-	//节点监听器
-	private final Map<String, CopyOnWriteArraySet<ZKListener>> nodeListenerMap = new ConcurrentHashMap<String, CopyOnWriteArraySet<ZKListener>>();
-	//状态监听器
-	private final Set<ZKStateListener> stateListenerSet = new CopyOnWriteArraySet<ZKStateListener>();
-	
-	//保存EPHEMERAL类型的节点，用于在断开重连，以及会话失效后的自动创建节点
-	private final Map<String, ZKNode> ephemeralNodeMap = new ConcurrentHashMap<String,ZKNode>();
-	
-	private final ZKConnection connection;//连接
-	private final ZKWatcher watcher;//监听器
-	private boolean shutdownTrigger;//触发关闭的标记，如果为true证明正在关闭客户端及连接
-	private final ZKSerializer serializer;//序列化工具
-	private volatile boolean closed;//是否已关闭客户端的标记
-	private final int eventThreadPoolSize; //线程池的大小，同时也是并发线程数
-	
-	/**
-	 * 创建ZKClient客户端
-	 * ZKClient. 
-	 * @param servers 服务器地址
-	 */
-	public ZKClient(String servers) {
-		this(new ZKConnectionImpl(servers));
-	}
-	
-	/**
-	 * 创建ZKClient客户端
-	 * ZKClient. 
-	 * @param servers 
-	 * 				服务器地址
-	 * @param sessionTimeOut 
-	 * 				会话超时时间，单位毫秒，这里并不是真实值，只是参考计算的值。
-	 * 				会话超时时间和服务端的配置有关，一般是2 * tickTime ~ 20 * tickTime之间
-	 */
-	public ZKClient(String servers, int sessionTimeOut) {
-		this(new ZKConnectionImpl(servers, sessionTimeOut));
-	}
-	
-	/**
-	 * 创建ZKClient客户端
-	 * ZKClient. 
-	 * @param servers 服务器地址
-	 * @param sessionTimeOut 会话超时时间，单位毫秒，这里并不是真实值，只是参考计算的值。
-	 * 		会话超时时间和服务端的配置有关，一般是2 * tickTime ~ 20 * tickTime之间
-	 * @param operationRetryTimeoutInMillis 重新连接超时时间,单位毫秒。
-	 * 		在会话过期或连接断开后，重新尝试连接的失效时间
-	 */
-	public ZKClient(String servers, int sessionTimeOut,int operationRetryTimeoutInMillis) {
-		this(new ZKConnectionImpl(servers, sessionTimeOut,operationRetryTimeoutInMillis),new SerializableSerializer());
-	}
-	/**
-	 * 创建ZKClient客户端
-	 * ZKClient. 
-	 * @param servers 服务器地址
-	 * @param sessionTimeOut 会话超时时间，单位毫秒，这里并不是真实值，只是参考计算的值。
-	 * 		会话超时时间和服务端的配置有关，一般是2 * tickTime ~ 20 * tickTime之间
-	 * @param operationRetryTimeoutInMillis 重新连接超时时间,单位毫秒。
-	 * 		在会话过期或连接断开后，重新尝试连接的失效时间
-	 * @param zkSerializer 序列化类
-	 */
-	public ZKClient(String servers, int sessionTimeOut,int operationRetryTimeoutInMillis,final ZKSerializer zkSerializer) {
-		this(new ZKConnectionImpl(servers, sessionTimeOut,operationRetryTimeoutInMillis),zkSerializer,Integer.MAX_VALUE);
-	}
-	/**
-	 * 创建ZKClient客户端
-	 * ZKClient. 
-	 * @param servers 服务器地址
-	 * @param sessionTimeOut 会话超时时间，单位毫秒，这里并不是真实值，只是参考计算的值。
-	 * 		会话超时时间和服务端的配置有关，一般是2 * tickTime ~ 20 * tickTime之间
-	 * @param operationRetryTimeoutInMillis 重新连接超时时间,单位毫秒。
-	 * 		在会话过期或连接断开后，重新尝试连接的失效时间
-	 * @param zkSerializer 序列化类
-	 * @param connectionTimeout 连接超时时间，单位毫秒
-	 * 			启动时连接到服务器的超时时间
-	 */
-	public ZKClient(String servers, int sessionTimeOut,int operationRetryTimeoutInMillis,final ZKSerializer zkSerializer,final int connectionTimeout) {
-		this(new ZKConnectionImpl(servers, sessionTimeOut,operationRetryTimeoutInMillis),zkSerializer,connectionTimeout,1);
-	}
-	/**
-	 * 创建ZKClient客户端
-	 * ZKClient. 
-	 * @param servers 服务器地址
-	 * @param sessionTimeOut 会话超时时间，单位毫秒，这里并不是真实值，只是参考计算的值。
-	 * 			会话超时时间和服务端的配置有关，一般是2 * tickTime ~ 20 * tickTime之间
-	 * @param operationRetryTimeoutInMillis 重新连接超时时间,单位毫秒。
-	 * 			在会话过期或连接断开后，重新尝试连接的失效时间
-	 * @param zkSerializer 序列化类
-	 * @param connectionTimeout 连接超时时间，单位毫秒
-	 * 			启动时连接到服务器的超时时间
-	 * @param eventThreadPoolSize 事件处理线程池的并发线程数，默认值：1。
-	 * 				1.如果想要串行执行监听器并且保证严格的顺序，请将设置为 1。
-	 * 				2.此值不易太大，推荐1~3即可。一般情况下1个线程就足够，因为一般ZooKeeper监听的响应并不会有很大的并发
-	 */
-	public ZKClient(String servers, int sessionTimeOut,int operationRetryTimeoutInMillis,
-			final ZKSerializer zkSerializer,final int connectionTimeout,final int eventThreadPoolSize) {
-		this(new ZKConnectionImpl(servers, sessionTimeOut,operationRetryTimeoutInMillis),zkSerializer,connectionTimeout,eventThreadPoolSize);
-	}
-	
-	/**
-	 * 创建ZKClient客户端
-	 * ZKClient. 
-	 * @param connection ZKConnection的连接对象
-	 */
-	public ZKClient(final ZKConnection connection) {
-		this(connection,new SerializableSerializer());
-	}
-	
-	/**
-	 * 创建ZKClient客户端
-	 * ZKClient. 
-	 * @param connection ZKConnection的连接对象
-	 * @param zkSerializer 序列化工具类
-	 */
-	public ZKClient(final ZKConnection connection,final ZKSerializer zkSerializer) {
-		this(connection,zkSerializer,Integer.MAX_VALUE);
-	}
-	
-	public ZKClient(final ZKConnection connection,final ZKSerializer zkSerializer,final int connectionTimeout) {
-		this(connection,zkSerializer,connectionTimeout,1);
-	}
-	/**
-	 * 创建ZKClient客户端
-	 * ZKClient. 
-	 * @param connection ZKConnection的连接对象
-	 * @param zkSerializer 序列化工具类
-	 * @param connectionTimeout 连接超时时间，单位毫秒
-	 * 		启动时连接到服务器的超时时间
-	 */
-	public ZKClient(final ZKConnection connection,final ZKSerializer zkSerializer,final int connectionTimeout, final int eventThreadPoolSize){
-		this.connection = connection;
-		this.serializer = zkSerializer;
-		this.eventThreadPoolSize = eventThreadPoolSize;
-		this.watcher = new ZKWatcher(this);
-		start(connectionTimeout,watcher);
-	}
-	
-	/**
-	 * 连接服务端并注册监听watcher
-	 * @param connectionTimeout 连接超时时间
-	 * @param watcher 事件监听器
-	 * @throws ZKInterruptedException
-	 * @throws ZKException
-	 * @throws IllegalStateException 
-	 * @return void
-	 * @author: zhaojie/zh_jie@163.com 
-	 */
-	private void start(final long connectionTimeout, Watcher watcher) throws ZKInterruptedException, ZKException, IllegalStateException {
+    private static Logger LOG = LoggerFactory.getLogger(ZKClient.class);
+    
+    //子节点监听器
+    private final Map<String, CopyOnWriteArraySet<ZKListener>> childListenerMap = new ConcurrentHashMap<String, CopyOnWriteArraySet<ZKListener>>();
+    //节点监听器
+    private final Map<String, CopyOnWriteArraySet<ZKListener>> nodeListenerMap = new ConcurrentHashMap<String, CopyOnWriteArraySet<ZKListener>>();
+    //状态监听器
+    private final Set<ZKStateListener> stateListenerSet = new CopyOnWriteArraySet<ZKStateListener>();
+    
+    //保存EPHEMERAL类型的节点，用于在断开重连，以及会话失效后的自动创建节点
+    private final Map<String, ZKNode> ephemeralNodeMap = new ConcurrentHashMap<String,ZKNode>();
+    
+    private final ZKConnection connection;//连接
+    private final ZKWatcher watcher;//监听器
+    private boolean shutdownTrigger;//触发关闭的标记，如果为true证明正在关闭客户端及连接
+    private final ZKSerializer serializer;//序列化工具
+    private volatile boolean closed;//是否已关闭客户端的标记
+    private final int eventThreadPoolSize; //线程池的大小，同时也是并发线程数
+    
+    /**
+     * 创建ZKClient客户端
+     * ZKClient. 
+     * @param servers 服务器地址
+     */
+    public ZKClient(String servers) {
+        this(new ZKConnectionImpl(servers));
+    }
+    
+    /**
+     * 创建ZKClient客户端
+     * ZKClient. 
+     * @param servers 
+     *                 服务器地址
+     * @param sessionTimeOut 
+     *                 会话超时时间，单位毫秒，这里并不是真实值，只是参考计算的值。
+     *                 会话超时时间和服务端的配置有关，一般是2 * tickTime ~ 20 * tickTime之间
+     */
+    public ZKClient(String servers, int sessionTimeOut) {
+        this(new ZKConnectionImpl(servers, sessionTimeOut));
+    }
+    
+    /**
+     * 创建ZKClient客户端
+     * ZKClient. 
+     * @param servers 服务器地址
+     * @param sessionTimeOut 会话超时时间，单位毫秒，这里并不是真实值，只是参考计算的值。
+     *         会话超时时间和服务端的配置有关，一般是2 * tickTime ~ 20 * tickTime之间
+     * @param operationRetryTimeoutInMillis 重新连接超时时间,单位毫秒。
+     *         在会话过期或连接断开后，重新尝试连接的失效时间
+     */
+    public ZKClient(String servers, int sessionTimeOut,int operationRetryTimeoutInMillis) {
+        this(new ZKConnectionImpl(servers, sessionTimeOut,operationRetryTimeoutInMillis),new SerializableSerializer());
+    }
+    /**
+     * 创建ZKClient客户端
+     * ZKClient. 
+     * @param servers 服务器地址
+     * @param sessionTimeOut 会话超时时间，单位毫秒，这里并不是真实值，只是参考计算的值。
+     *         会话超时时间和服务端的配置有关，一般是2 * tickTime ~ 20 * tickTime之间
+     * @param operationRetryTimeoutInMillis 重新连接超时时间,单位毫秒。
+     *         在会话过期或连接断开后，重新尝试连接的失效时间
+     * @param zkSerializer 序列化类
+     */
+    public ZKClient(String servers, int sessionTimeOut,int operationRetryTimeoutInMillis,final ZKSerializer zkSerializer) {
+        this(new ZKConnectionImpl(servers, sessionTimeOut,operationRetryTimeoutInMillis),zkSerializer,Integer.MAX_VALUE);
+    }
+    /**
+     * 创建ZKClient客户端
+     * ZKClient. 
+     * @param servers 服务器地址
+     * @param sessionTimeOut 会话超时时间，单位毫秒，这里并不是真实值，只是参考计算的值。
+     *         会话超时时间和服务端的配置有关，一般是2 * tickTime ~ 20 * tickTime之间
+     * @param operationRetryTimeoutInMillis 重新连接超时时间,单位毫秒。
+     *         在会话过期或连接断开后，重新尝试连接的失效时间
+     * @param zkSerializer 序列化类
+     * @param connectionTimeout 连接超时时间，单位毫秒
+     *             启动时连接到服务器的超时时间
+     */
+    public ZKClient(String servers, int sessionTimeOut,int operationRetryTimeoutInMillis,final ZKSerializer zkSerializer,final int connectionTimeout) {
+        this(new ZKConnectionImpl(servers, sessionTimeOut,operationRetryTimeoutInMillis),zkSerializer,connectionTimeout,1);
+    }
+    /**
+     * 创建ZKClient客户端
+     * ZKClient. 
+     * @param servers 服务器地址
+     * @param sessionTimeOut 会话超时时间，单位毫秒，这里并不是真实值，只是参考计算的值。
+     *             会话超时时间和服务端的配置有关，一般是2 * tickTime ~ 20 * tickTime之间
+     * @param operationRetryTimeoutInMillis 重新连接超时时间,单位毫秒。
+     *             在会话过期或连接断开后，重新尝试连接的失效时间
+     * @param zkSerializer 序列化类
+     * @param connectionTimeout 连接超时时间，单位毫秒
+     *             启动时连接到服务器的超时时间
+     * @param eventThreadPoolSize 事件处理线程池的并发线程数，默认值：1。
+     *                 1.如果想要串行执行监听器并且保证严格的顺序，请将设置为 1。
+     *                 2.此值不易太大，推荐1~3即可。一般情况下1个线程就足够，因为一般ZooKeeper监听的响应并不会有很大的并发
+     */
+    public ZKClient(String servers, int sessionTimeOut,int operationRetryTimeoutInMillis,
+            final ZKSerializer zkSerializer,final int connectionTimeout,final int eventThreadPoolSize) {
+        this(new ZKConnectionImpl(servers, sessionTimeOut,operationRetryTimeoutInMillis),zkSerializer,connectionTimeout,eventThreadPoolSize);
+    }
+    
+    /**
+     * 创建ZKClient客户端
+     * ZKClient. 
+     * @param connection ZKConnection的连接对象
+     */
+    public ZKClient(final ZKConnection connection) {
+        this(connection,new SerializableSerializer());
+    }
+    
+    /**
+     * 创建ZKClient客户端
+     * ZKClient. 
+     * @param connection ZKConnection的连接对象
+     * @param zkSerializer 序列化工具类
+     */
+    public ZKClient(final ZKConnection connection,final ZKSerializer zkSerializer) {
+        this(connection,zkSerializer,Integer.MAX_VALUE);
+    }
+    
+    public ZKClient(final ZKConnection connection,final ZKSerializer zkSerializer,final int connectionTimeout) {
+        this(connection,zkSerializer,connectionTimeout,1);
+    }
+    /**
+     * 创建ZKClient客户端
+     * ZKClient. 
+     * @param connection ZKConnection的连接对象
+     * @param zkSerializer 序列化工具类
+     * @param connectionTimeout 连接超时时间，单位毫秒
+     *         启动时连接到服务器的超时时间
+     */
+    public ZKClient(final ZKConnection connection,final ZKSerializer zkSerializer,final int connectionTimeout, final int eventThreadPoolSize){
+        this.connection = connection;
+        this.serializer = zkSerializer;
+        this.eventThreadPoolSize = eventThreadPoolSize;
+        this.watcher = new ZKWatcher(this);
+        start(connectionTimeout,watcher);
+    }
+    
+    /**
+     * 连接服务端并注册监听watcher
+     * @param connectionTimeout 连接超时时间
+     * @param watcher 事件监听器
+     * @throws ZKInterruptedException
+     * @throws ZKException
+     * @throws IllegalStateException 
+     * @return void
+     * @author: zhaojie/zh_jie@163.com 
+     */
+    private void start(final long connectionTimeout, Watcher watcher) throws ZKInterruptedException, ZKException, IllegalStateException {
         boolean started = false;
         //获取可中断锁
         acquireEventLockInterruptibly();
@@ -230,76 +230,76 @@ public class ZKClient  {
             }
         }
     }
-	
-	/**
-	 * 重新连接服务器并注册监听
-	 * @return void
-	 * @author: zhaojie/zh_jie@163.com 
-	 * @version: 2016年5月24日 上午9:12:02
-	 */
-	public void reconnect() {
-		connection.reconnect(watcher);
-		closed = false;
-		//重新设置监听器
-		relisten();
-		//重新创建，需要创建的临时类型的节点
-		recreatEphemeraleNode();
-	}
-	
-	/**
-	 * 重新设置监听
-	 * @return void
-	 * @author: zhaojie/zh_jie@163.com 
-	 * @version: 2016年5月26日 上午12:18:36
-	 */
-	public void relisten(){
-		LOG.info(" Relisten.......");
-		for (Entry<String, CopyOnWriteArraySet<ZKListener>> entry : nodeListenerMap.entrySet()) {
-			watchForData(entry.getKey());
-			LOG.debug("Relisten node:{}", entry.getKey());
-		}
-		for (Entry<String, CopyOnWriteArraySet<ZKListener>> entry : childListenerMap.entrySet()) {
-			watchForChilds(entry.getKey());
-			LOG.debug("Relisten child:{}", entry.getKey());
-		}
-	}
+    
+    /**
+     * 重新连接服务器并注册监听
+     * @return void
+     * @author: zhaojie/zh_jie@163.com 
+     * @version: 2016年5月24日 上午9:12:02
+     */
+    public void reconnect() {
+        connection.reconnect(watcher);
+        closed = false;
+        //重新设置监听器
+        relisten();
+        //重新创建，需要创建的临时类型的节点
+        recreatEphemeraleNode();
+    }
+    
+    /**
+     * 重新设置监听
+     * @return void
+     * @author: zhaojie/zh_jie@163.com 
+     * @version: 2016年5月26日 上午12:18:36
+     */
+    public void relisten(){
+        LOG.info(" Relisten.......");
+        for (Entry<String, CopyOnWriteArraySet<ZKListener>> entry : nodeListenerMap.entrySet()) {
+            watchForData(entry.getKey());
+            LOG.debug("Relisten node:{}", entry.getKey());
+        }
+        for (Entry<String, CopyOnWriteArraySet<ZKListener>> entry : childListenerMap.entrySet()) {
+            watchForChilds(entry.getKey());
+            LOG.debug("Relisten child:{}", entry.getKey());
+        }
+    }
 
-	/**
-	 * 关闭客户端，同时会取消与ZooKeeper的连接，清空并取消所有的监听
-	 * @throws ZKInterruptedException 
-	 * @return void
-	 */
-	public void close() throws ZKInterruptedException {
-		if (closed) {
-		    return;
-		}
-		LOG.debug("Closing ZKClient ...");
-		acquireEventLock();
-		try {
-			shutdownTrigger = true;
-			connection.close();
-			closed = true;
-			//取消监听
-			unlistenAll();
-		} catch (InterruptedException e) {
-		    throw new ZKInterruptedException(e);
-		} finally {
-		    releaseEventLock();
-		}
-		LOG.debug("Closed the ZKClient .");
-	}
-	
-	/**
-	 * 监听子节点的变化，只是监听数量的变化。
-	 * @param path 父路径
-	 * @param listener 监听器
-	 * @return 
-	 * @return List<String> 返回当前子节点路径集合
-	 */
+    /**
+     * 关闭客户端，同时会取消与ZooKeeper的连接，清空并取消所有的监听
+     * @throws ZKInterruptedException 
+     * @return void
+     */
+    public void close() throws ZKInterruptedException {
+        if (closed) {
+            return;
+        }
+        LOG.debug("Closing ZKClient ...");
+        acquireEventLock();
+        try {
+            shutdownTrigger = true;
+            connection.close();
+            closed = true;
+            //取消监听
+            unlistenAll();
+        } catch (InterruptedException e) {
+            throw new ZKInterruptedException(e);
+        } finally {
+            releaseEventLock();
+        }
+        LOG.debug("Closed the ZKClient .");
+    }
+    
+    /**
+     * 监听子节点的变化，只是监听数量的变化。
+     * @param path 父路径
+     * @param listener 监听器
+     * @return 
+     * @return List<String> 返回当前子节点路径集合
+     */
     public List<String> listenChildCountChanges(String path, ZKChildCountListener listener) {
-    	LOG.debug("Listen child count changes ["+path+"--"+listener+"] ");
+        LOG.debug("Listen child count changes ["+path+"--"+listener+"] ");
         synchronized (childListenerMap) {
-        	CopyOnWriteArraySet<ZKListener> listeners = childListenerMap.get(path);
+            CopyOnWriteArraySet<ZKListener> listeners = childListenerMap.get(path);
             if (listeners == null) {
                 listeners = new CopyOnWriteArraySet<ZKListener>();
                 childListenerMap.put(path, listeners);
@@ -319,9 +319,9 @@ public class ZKClient  {
      * @return List<String>
      */
     public List<String> listenChildDataChanges(String path, ZKChildDataListener listener) {
-    	LOG.debug("Listen child count and data  changes ["+path+"--"+listener+"] ");
+        LOG.debug("Listen child count and data  changes ["+path+"--"+listener+"] ");
         synchronized (childListenerMap) {
-        	CopyOnWriteArraySet<ZKListener> listeners = childListenerMap.get(path);
+            CopyOnWriteArraySet<ZKListener> listeners = childListenerMap.get(path);
             if (listeners == null) {
                 listeners = new CopyOnWriteArraySet<ZKListener>();
                 childListenerMap.put(path, listeners);
@@ -330,7 +330,7 @@ public class ZKClient  {
         }
         
        List<String> children =  watchForChilds(path);
-  	  	//监听子节点数据
+            //监听子节点数据
        listenNewChildPathWithData(path,children);
         return children;
     }
@@ -342,55 +342,55 @@ public class ZKClient  {
      * @return void
      */
     public void listenNewChildPathWithData(String path,List<String> children){
-    	
-    	if(children==null || children.size()==0){
-    		return;
-    	}
-    	CopyOnWriteArraySet<ZKListener> chidldDataListeners = new CopyOnWriteArraySet<ZKListener>();
-    	synchronized (childListenerMap) {
-    		Set<ZKListener> listeners = childListenerMap.get(path);
-    		if(listeners == null || listeners.size() == 0 ){
-    			return;
-    		}
-	    	for(ZKListener listener : listeners){
-	    		if(listener instanceof ZKChildDataListener){
-	    			if(!chidldDataListeners.contains(listener)){
-	    				chidldDataListeners.add(listener);
-	    			}
-	    		}
-	    	}
-    	}
-    	
-    	List<String> newWatchPaths = new ArrayList<String>();
-    	synchronized (nodeListenerMap) {
-	     	for(String childPath : children){
-	     		childPath = path+"/"+childPath;
-	     		CopyOnWriteArraySet<ZKListener> nodeListeners = nodeListenerMap.get(childPath);
-	     		boolean isNewPath = true;
-	 			if(nodeListeners!=null && nodeListeners.size()>0){
-	 				isNewPath = false;
-	 			}
-	 			if(nodeListeners == null){
-	 				nodeListeners = new CopyOnWriteArraySet<ZKListener>();
-	 				nodeListenerMap.put(childPath, nodeListeners);
-	 			}
-	 			for(ZKListener listener : chidldDataListeners){
-	 				if(!nodeListeners.contains(listener)){
-	 					nodeListeners.add(listener);
-	         		}
-	 			}
-	     		if(isNewPath){
-	     			if(nodeListeners!=null && nodeListeners.size()>0){
-	     				newWatchPaths.add(childPath);
-	         		}
-	     		}
-	     	}
-    	}
-     	
-     	for(String newPath : newWatchPaths){
-     		LOG.debug("listen new child path ["+newPath+"]");
-     		watchForData(newPath);
-     	}
+        
+        if(children==null || children.size()==0){
+            return;
+        }
+        CopyOnWriteArraySet<ZKListener> chidldDataListeners = new CopyOnWriteArraySet<ZKListener>();
+        synchronized (childListenerMap) {
+            Set<ZKListener> listeners = childListenerMap.get(path);
+            if(listeners == null || listeners.size() == 0 ){
+                return;
+            }
+            for(ZKListener listener : listeners){
+                if(listener instanceof ZKChildDataListener){
+                    if(!chidldDataListeners.contains(listener)){
+                        chidldDataListeners.add(listener);
+                    }
+                }
+            }
+        }
+        
+        List<String> newWatchPaths = new ArrayList<String>();
+        synchronized (nodeListenerMap) {
+             for(String childPath : children){
+                 childPath = path+"/"+childPath;
+                 CopyOnWriteArraySet<ZKListener> nodeListeners = nodeListenerMap.get(childPath);
+                 boolean isNewPath = true;
+                 if(nodeListeners!=null && nodeListeners.size()>0){
+                     isNewPath = false;
+                 }
+                 if(nodeListeners == null){
+                     nodeListeners = new CopyOnWriteArraySet<ZKListener>();
+                     nodeListenerMap.put(childPath, nodeListeners);
+                 }
+                 for(ZKListener listener : chidldDataListeners){
+                     if(!nodeListeners.contains(listener)){
+                         nodeListeners.add(listener);
+                     }
+                 }
+                 if(isNewPath){
+                     if(nodeListeners!=null && nodeListeners.size()>0){
+                         newWatchPaths.add(childPath);
+                     }
+                 }
+             }
+        }
+         
+         for(String newPath : newWatchPaths){
+             LOG.debug("listen new child path ["+newPath+"]");
+             watchForData(newPath);
+         }
     }
 
     /**
@@ -401,8 +401,8 @@ public class ZKClient  {
      * @return void
      */
     public void unlistenChildChanges(String path, ZKListener childListener) {
-    	LOG.debug("Unlisten child ["+path+"--"+childListener+"] ");
-    	//解除对子节点的监听
+        LOG.debug("Unlisten child ["+path+"--"+childListener+"] ");
+        //解除对子节点的监听
         synchronized (childListenerMap) {
             final Set<ZKListener> listeners = childListenerMap.get(path);
             if (listeners != null) {
@@ -410,37 +410,37 @@ public class ZKClient  {
                 LOG.debug("unlistenChildChanges:Unlistener path["+path+"--"+childListener+"] ");
             }
             if(listeners == null || listeners.isEmpty()){
-            	childListenerMap.remove(path);
+                childListenerMap.remove(path);
             }
         }
         //如果监听了子节点的数据变化，则要同时解除对子节点的数据变化的监听。
-		if(childListener instanceof ZKChildDataListener){
-			 synchronized (nodeListenerMap) {
-		    	Set<String> dataPaths = nodeListenerMap.keySet();
-		    	//遍历所有的节点监听器，查找是path节点的子节点，并移除监听器
-		    	for(String dataPath : dataPaths){
-		    		//查找path的下一级节点的监听器,并删除注册的ZKChildDataListener监听器
-		    		int index = dataPath.lastIndexOf("/");
-		    		if(index>0){
-		    			String parentPath = dataPath.substring(0, index);
-		        		if(path.equals(parentPath)){//如果dataPath是下一级节点
-		        			CopyOnWriteArraySet<ZKListener> nodeListeners = nodeListenerMap.get(dataPath);
-		        			if(nodeListeners != null) {
-		        				for(ZKListener nodeListener : nodeListeners){
-		        					if(nodeListener instanceof ZKChildDataListener){
-		        						nodeListeners.remove(nodeListener);
-		        						LOG.debug(":Unlistener child data changes ["+dataPath+"--"+nodeListener+"] ");
-		        					}
-		        				}
-		        			}
-		        			 if(nodeListeners == null || nodeListeners.isEmpty()){
-		        				 nodeListenerMap.remove(dataPath);
-		        			 }
-		        		}
-		    		}
-		    	}
-			}
-		}
+        if(childListener instanceof ZKChildDataListener){
+             synchronized (nodeListenerMap) {
+                Set<String> dataPaths = nodeListenerMap.keySet();
+                //遍历所有的节点监听器，查找是path节点的子节点，并移除监听器
+                for(String dataPath : dataPaths){
+                    //查找path的下一级节点的监听器,并删除注册的ZKChildDataListener监听器
+                    int index = dataPath.lastIndexOf("/");
+                    if(index>0){
+                        String parentPath = dataPath.substring(0, index);
+                        if(path.equals(parentPath)){//如果dataPath是下一级节点
+                            CopyOnWriteArraySet<ZKListener> nodeListeners = nodeListenerMap.get(dataPath);
+                            if(nodeListeners != null) {
+                                for(ZKListener nodeListener : nodeListeners){
+                                    if(nodeListener instanceof ZKChildDataListener){
+                                        nodeListeners.remove(nodeListener);
+                                        LOG.debug(":Unlistener child data changes ["+dataPath+"--"+nodeListener+"] ");
+                                    }
+                                }
+                            }
+                             if(nodeListeners == null || nodeListeners.isEmpty()){
+                                 nodeListenerMap.remove(dataPath);
+                             }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -450,8 +450,8 @@ public class ZKClient  {
      * @return void
      */
     public void listenNodeChanges(String path, ZKListener nodeListener) {
-    	LOG.debug("listen Node ["+path+"--"+nodeListener+"] ");
-    	CopyOnWriteArraySet<ZKListener> listeners;
+        LOG.debug("listen Node ["+path+"--"+nodeListener+"] ");
+        CopyOnWriteArraySet<ZKListener> listeners;
         synchronized (nodeListenerMap) {
             listeners = nodeListenerMap.get(path);
             if (listeners == null) {
@@ -471,15 +471,15 @@ public class ZKClient  {
      * @return void
      */
     public void unlistenNodeChanges(String path, ZKListener nodeListener) {
-    	LOG.debug("Unlisten Node ["+path+"--"+nodeListener+"] ");
+        LOG.debug("Unlisten Node ["+path+"--"+nodeListener+"] ");
         synchronized (nodeListenerMap) {
             final Set<ZKListener> listeners = nodeListenerMap.get(path);
             if (listeners != null) {
                 listeners.remove(nodeListener);
             }
             if (listeners == null || listeners.isEmpty()) {
-            	nodeListenerMap.remove(path);
-            	LOG.debug("unlistened path: " + path);
+                nodeListenerMap.remove(path);
+                LOG.debug("unlistened path: " + path);
             }
         }
     }
@@ -491,14 +491,14 @@ public class ZKClient  {
      * @return void
      */
     public void unlistenNodeChanges(String path, Set<ZKListener> dataListeners) {
-    	LOG.debug("Unlisten  Node ["+path+"--"+dataListeners+"] ");
+        LOG.debug("Unlisten  Node ["+path+"--"+dataListeners+"] ");
         synchronized (nodeListenerMap) {
             final Set<ZKListener> listeners = nodeListenerMap.get(path);
             if (listeners != null) {
                 listeners.removeAll(dataListeners);
             }
             if (listeners == null || listeners.isEmpty()) {
-            	nodeListenerMap.remove(path);
+                nodeListenerMap.remove(path);
             }
         }
     }
@@ -509,9 +509,9 @@ public class ZKClient  {
      * @return void
      */
     public void listenStateChanges(final ZKStateListener listener) {
-    	LOG.debug("listen state changes. ["+listener+"]");
+        LOG.debug("listen state changes. ["+listener+"]");
         synchronized (stateListenerSet) {
-        	stateListenerSet.add(listener);
+            stateListenerSet.add(listener);
         }
     }
 
@@ -524,7 +524,7 @@ public class ZKClient  {
      */
     public void unlistenStateChanges(ZKStateListener stateListener) {
         synchronized (stateListenerSet) {
-        	stateListenerSet.remove(stateListener);
+            stateListenerSet.remove(stateListener);
         }
     }
 
@@ -534,13 +534,13 @@ public class ZKClient  {
      */
     public void unlistenAll() {
         synchronized (childListenerMap) {
-        	childListenerMap.clear();
+            childListenerMap.clear();
         }
         synchronized (nodeListenerMap) {
-        	nodeListenerMap.clear();
+            nodeListenerMap.clear();
         }
         synchronized (stateListenerSet) {
-        	stateListenerSet.clear();
+            stateListenerSet.clear();
         }
     }
     
@@ -582,8 +582,8 @@ public class ZKClient  {
         //可中断锁
         acquireEventLockInterruptibly();
         try {
-        	//如果节点暂时不存在，则监听该节点。
-        	//同时当前线程处于等待状态，如果节点被创建，则会触发监听事件，同时线程被唤醒
+            //如果节点暂时不存在，则监听该节点。
+            //同时当前线程处于等待状态，如果节点被创建，则会触发监听事件，同时线程被唤醒
             while (!exists(path, true)) {
                 boolean gotSignal = getEventLock().getNodeEventCondition().awaitUntil(timeout);
                 if (!gotSignal) {
@@ -607,7 +607,7 @@ public class ZKClient  {
      * @version: 2016年5月23日 下午11:44:54
      */
     private void watchForData(final String path) {
-    	LOG.debug("watch data change for path["+path+"]");
+        LOG.debug("watch data change for path["+path+"]");
         retryUntilConnected(new Callable<Object>() {
             @Override
             public Object call() throws Exception {
@@ -627,10 +627,10 @@ public class ZKClient  {
         return retryUntilConnected(new Callable<List<String>>() {
             @Override
             public List<String> call() throws Exception {
-            	//监听父节点
+                //监听父节点
                 exists(path, true);
                 try {
-                	//返回并监听子节点
+                    //返回并监听子节点
                     return getChildren(path, true);
                 } catch (ZKNoNodeException e) {
                     // 忽略，父节点没有被创建报错，因为设置了监听父节点，此处忽略
@@ -640,18 +640,18 @@ public class ZKClient  {
         });
     }
     
-	
+    
     /**
      * 判断节点是否存在
      * @param path
      * @param watch 
-     * 		true:将监听该节点的状态，包括创建、删除、修改节点数据，状态改变则会触发监听事件。
-     * 		false:不启用监听
+     *         true:将监听该节点的状态，包括创建、删除、修改节点数据，状态改变则会触发监听事件。
+     *         false:不启用监听
      * @return boolean 存在返回true，不存在返回false
      * @author: zhaojie/zh_jie@163.com 
      * @version: 2016年5月23日 下午11:50:27
      */
-	public boolean exists(final String path, final boolean watch) {
+    public boolean exists(final String path, final boolean watch) {
         return retryUntilConnected(new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
@@ -659,18 +659,18 @@ public class ZKClient  {
             }
         });
     }
-	
-	/**
-	 * 获取子节点
-	 * @param path 父节点路径
-	 * @param watch 
-	 * 		true:监听该节点子节点状态，包括删除此节点、创建子节点，删除子节点，状态改变则会触发监听事件。
-	 * 		false:不启用监听
-	 * @return List<String> 子节点路径列表
-	 * @author: zhaojie/zh_jie@163.com 
-	 * @version: 2016年5月23日 下午11:52:55
-	 */
-	public List<String> getChildren(final String path, final boolean watch) {
+    
+    /**
+     * 获取子节点
+     * @param path 父节点路径
+     * @param watch 
+     *         true:监听该节点子节点状态，包括删除此节点、创建子节点，删除子节点，状态改变则会触发监听事件。
+     *         false:不启用监听
+     * @return List<String> 子节点路径列表
+     * @author: zhaojie/zh_jie@163.com 
+     * @version: 2016年5月23日 下午11:52:55
+     */
+    public List<String> getChildren(final String path, final boolean watch) {
         return retryUntilConnected(new Callable<List<String>>() {
             @Override
             public List<String> call() throws Exception {
@@ -678,16 +678,16 @@ public class ZKClient  {
             }
         });
     }
-	
+    
 
-	/**
-	 * 判断节点是否存在，如果当前client中设置了该节点的监听器，则启用对该节点的监听
-	 * @param path
-	 * @return 
-	 * @return boolean
-	 * @author: zhaojie/zh_jie@163.com 
-	 * @version: 2016年5月24日 上午12:11:14
-	 */
+    /**
+     * 判断节点是否存在，如果当前client中设置了该节点的监听器，则启用对该节点的监听
+     * @param path
+     * @return 
+     * @return boolean
+     * @author: zhaojie/zh_jie@163.com 
+     * @version: 2016年5月24日 上午12:11:14
+     */
     public boolean exists(final String path) {
         return exists(path, hasListeners(path));
     }
@@ -718,8 +718,8 @@ public class ZKClient  {
      * @return void
      */
     public void createRecursive(String path, Object data, CreateMode createMode) 
-    		throws ZKInterruptedException, ZKException, RuntimeException {
-    	createRecursive(path,data, ZooDefs.Ids.OPEN_ACL_UNSAFE,createMode);
+            throws ZKInterruptedException, ZKException, RuntimeException {
+        createRecursive(path,data, ZooDefs.Ids.OPEN_ACL_UNSAFE,createMode);
     }
 
     /**
@@ -735,12 +735,12 @@ public class ZKClient  {
      * @return void
      */
     public void createRecursive(String path , Object data, List<ACL> acl,CreateMode createMode) 
-    		throws ZKInterruptedException, ZKException, RuntimeException {
+            throws ZKInterruptedException, ZKException, RuntimeException {
         try {
             create(path, data, acl, createMode);
             System.out.println(path+" is created with data " + data +" mode "+ createMode);
         } catch (ZKNodeExistsException e) {
-        	System.out.println(path+" not exists");
+            System.out.println(path+" not exists");
            //ignore
         } catch (ZKNoNodeException e) {
             String parentDir = path.substring(0, path.lastIndexOf('/'));
@@ -763,7 +763,7 @@ public class ZKClient  {
      * @author: zhaojie/zh_jie@163.com 
      */
     public String create(final String path, Object data, final CreateMode createMode) 
-    		throws ZKInterruptedException, ZKException, RuntimeException {
+            throws ZKInterruptedException, ZKException, RuntimeException {
         return create(path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, createMode);
     }
     
@@ -807,20 +807,20 @@ public class ZKClient  {
      * @param path 路径
      * @param data 数据
      * @param sequential 
-     * 		true:会创建{@link CreateMode#EPHEMERAL_SEQUENTIAL}类型的节点.
-     * 		false:会创建{@link CreateMode#EPHEMERAL}类型的节点.
+     *         true:会创建{@link CreateMode#EPHEMERAL_SEQUENTIAL}类型的节点.
+     *         false:会创建{@link CreateMode#EPHEMERAL}类型的节点.
      * @return String
-     * 		创建的节点路径
+     *         创建的节点路径
      */
     public String createEphemerale(final String path, Object data,Boolean sequential){
-    	CreateMode createMode = CreateMode.EPHEMERAL;
-    	if(sequential){
-    		createMode = createMode.EPHEMERAL_SEQUENTIAL;
-    	}
-    	String retPath = create(path, data, createMode);
-    	//将节点放入ephemeralNodeMap，用于重连后的自动创建
-    	ephemeralNodeMap.put(path, new ZKNode(path,data,createMode));
-    	return retPath;
+        CreateMode createMode = CreateMode.EPHEMERAL;
+        if(sequential){
+            createMode = createMode.EPHEMERAL_SEQUENTIAL;
+        }
+        String retPath = create(path, data, createMode);
+        //将节点放入ephemeralNodeMap，用于重连后的自动创建
+        ephemeralNodeMap.put(path, new ZKNode(path,data,createMode));
+        return retPath;
     }
     
     /**
@@ -831,20 +831,20 @@ public class ZKClient  {
      * @param data 数据
      * @param acl 访问控制配置
      * @param sequential 
-     * 		true:会创建{@link CreateMode#EPHEMERAL_SEQUENTIAL}类型的节点.
-     * 		false:会创建{@link CreateMode#EPHEMERAL}类型的节点.
+     *         true:会创建{@link CreateMode#EPHEMERAL_SEQUENTIAL}类型的节点.
+     *         false:会创建{@link CreateMode#EPHEMERAL}类型的节点.
      * @return String
-     * 		创建的节点路径
+     *         创建的节点路径
      */
     public String createEphemerale(final String path, Object data, final List<ACL> acl,Boolean sequential){
-    	CreateMode createMode = CreateMode.EPHEMERAL;
-    	if(sequential){
-    		createMode = createMode.EPHEMERAL_SEQUENTIAL;
-    	}
-    	String retPath = create(path, data, acl, createMode);
-    	//将节点放入ephemeralNodeMap，用于重连后的自动创建
-    	ephemeralNodeMap.put(path, new ZKNode(path,data,createMode));
-    	return retPath;
+        CreateMode createMode = CreateMode.EPHEMERAL;
+        if(sequential){
+            createMode = createMode.EPHEMERAL_SEQUENTIAL;
+        }
+        String retPath = create(path, data, acl, createMode);
+        //将节点放入ephemeralNodeMap，用于重连后的自动创建
+        ephemeralNodeMap.put(path, new ZKNode(path,data,createMode));
+        return retPath;
     }
     
     /**
@@ -852,15 +852,15 @@ public class ZKClient  {
      * @return void
      */
     private void recreatEphemeraleNode(){
-    	for (Entry<String, ZKNode> entry : ephemeralNodeMap.entrySet()) {
-    		ZKNode zkNode = entry.getValue();
-    		LOG.debug("recreate ephemerale node " + entry.getKey());
-    		try {
-    			create(entry.getKey(), zkNode.getData(), zkNode.getCreateMode());
-			} catch (ZKNodeExistsException e) {
-				//ignore
-			}
-    	}
+        for (Entry<String, ZKNode> entry : ephemeralNodeMap.entrySet()) {
+            ZKNode zkNode = entry.getValue();
+            LOG.debug("recreate ephemerale node " + entry.getKey());
+            try {
+                create(entry.getKey(), zkNode.getData(), zkNode.getCreateMode());
+            } catch (ZKNodeExistsException e) {
+                //ignore
+            }
+        }
     }
     
     /**
@@ -880,7 +880,7 @@ public class ZKClient  {
      * 如果此路径设置了监听器，则会监听此节点
      * @param path 路径
      * @param returnNullIfPathNotExists 
-     * 		值为true，在路径不存在的时候返回null，值为false，路径不存在的时候抛出异常
+     *         值为true，在路径不存在的时候返回null，值为false，路径不存在的时候抛出异常
      * @return 
      * @return T
      */
@@ -920,7 +920,7 @@ public class ZKClient  {
      * @return T
      */
     @SuppressWarnings("unchecked")
-	private <T extends Object> T getData(final String path,final boolean watch,final Stat stat) {
+    private <T extends Object> T getData(final String path,final boolean watch,final Stat stat) {
         byte[] data = retryUntilConnected(new Callable<byte[]>() {
             @Override
             public byte[] call() throws Exception {
@@ -984,8 +984,8 @@ public class ZKClient  {
      */
     public boolean delete(final String path, final int version) {
         try {
-        	LOG.debug("delete path ["+path+"]..");
-        	retryUntilConnected(new Callable<Object>() {
+            LOG.debug("delete path ["+path+"]..");
+            retryUntilConnected(new Callable<Object>() {
 
                 @Override
                 public Object call() throws Exception {
@@ -1077,7 +1077,7 @@ public class ZKClient  {
         return retryUntilConnected(new Callable<Map.Entry<List<ACL>, Stat>>() {
             @Override
             public Map.Entry<List<ACL>, Stat> call() throws Exception {
-            	 Stat stat = new Stat();
+                 Stat stat = new Stat();
                  List<ACL> acl = getZooKeeper().getACL(path, stat);
                  return new SimpleEntry(acl, stat);
             }
@@ -1094,10 +1094,10 @@ public class ZKClient  {
      * @return T
      */
     private <T> T retryUntilConnected(Callable<T> callable) throws ZKInterruptedException, ZKException, RuntimeException {
- 	   if(closed){
- 		   throw new ZKException("ZKClient is closed!");
- 	   }
- 	   return connection.retryUntilConnected(callable);
+        if(closed){
+            throw new ZKException("ZKClient is closed!");
+        }
+        return connection.retryUntilConnected(callable);
     }
    
     
@@ -1108,7 +1108,7 @@ public class ZKClient  {
      * @return void
      */
     public void addAuthInfo(final String scheme, final byte[] auth) {
-    	connection.addAuthInfo(scheme, auth);
+        connection.addAuthInfo(scheme, auth);
     }
     
     /**
@@ -1117,64 +1117,64 @@ public class ZKClient  {
      * @author: zhaojie/zh_jie@163.com 
      */
     public void acquireEventLock(){
-		connection.acquireEventLock();
-	}
+        connection.acquireEventLock();
+    }
     
     /**
      * 释放锁
      * @return void
      * @author: zhaojie/zh_jie@163.com 
      */
-	public void releaseEventLock(){
-		connection.releaseEventLock();
-	}
-	
-	/**
-	 * 尝试获得可中断锁
-	 * @return void
-	 * @author: zhaojie/zh_jie@163.com 
-	 */
-	public void acquireEventLockInterruptibly() {
+    public void releaseEventLock(){
+        connection.releaseEventLock();
+    }
+    
+    /**
+     * 尝试获得可中断锁
+     * @return void
+     * @author: zhaojie/zh_jie@163.com 
+     */
+    public void acquireEventLockInterruptibly() {
        connection.acquireEventLockInterruptibly();
     }
 
-	public boolean getShutdownTrigger() {
-		return shutdownTrigger;
-	}
+    public boolean getShutdownTrigger() {
+        return shutdownTrigger;
+    }
 
-	public KeeperState getCurrentState() {
-		return connection.getCurrentState();
-	}
+    public KeeperState getCurrentState() {
+        return connection.getCurrentState();
+    }
 
-	public void setCurrentState(KeeperState currentState) {
+    public void setCurrentState(KeeperState currentState) {
         connection.setCurrentState(currentState);
-	}
-	
-	public Map<String, CopyOnWriteArraySet<ZKListener>> getChildListenerMap() {
-		return childListenerMap;
-	}
+    }
+    
+    public Map<String, CopyOnWriteArraySet<ZKListener>> getChildListenerMap() {
+        return childListenerMap;
+    }
 
-	public Map<String, CopyOnWriteArraySet<ZKListener>> getNodeListenerMap() {
-		return nodeListenerMap;
-	}
+    public Map<String, CopyOnWriteArraySet<ZKListener>> getNodeListenerMap() {
+        return nodeListenerMap;
+    }
 
-	public Set<ZKStateListener> getStateListenerSet() {
-		return stateListenerSet;
-	}
+    public Set<ZKStateListener> getStateListenerSet() {
+        return stateListenerSet;
+    }
 
-	public ZKConnection getConnection() {
-		return connection;
-	}
+    public ZKConnection getConnection() {
+        return connection;
+    }
 
-	public ZKEventLock getEventLock() {
-		return connection.getEventLock();
-	}
-	
-	public ZooKeeper getZooKeeper(){
-		return this.connection.getZooKeeper();
-	}
+    public ZKEventLock getEventLock() {
+        return connection.getEventLock();
+    }
+    
+    public ZooKeeper getZooKeeper(){
+        return this.connection.getZooKeeper();
+    }
 
-	public int getEventThreadPoolSize() {
-		return eventThreadPoolSize;
-	}
+    public int getEventThreadPoolSize() {
+        return eventThreadPoolSize;
+    }
 }

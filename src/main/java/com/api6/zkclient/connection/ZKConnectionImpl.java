@@ -45,59 +45,59 @@ import com.api6.zkclient.util.ExceptionUtil;
  * @author: zhaojie/zh_jie@163.com.com 
  */
 public class ZKConnectionImpl implements ZKConnection {
-	private static final Logger  LOG = LoggerFactory.getLogger(ZKConnectionImpl.class);
-	
-	protected static final String JAVA_LOGIN_CONFIG_PARAM = "java.security.auth.login.config";
-	protected static final String ZK_SASL_CLIENT = "zookeeper.sasl.client";
-	protected static final String ZK_LOGIN_CONTEXT_NAME_KEY = "zookeeper.sasl.clientconfig";
-	
-	//session超时时间
-	private static final int DEFAULT_SESSION_TIMEOUT = 30000;
-	private final String servers;//服务器地址
-	private final int sessionTimeout;//会话超时时间
-	
-	//原生zookeeper客户端
-	private ZooKeeper zooKeeper = null;
-	//ReentrantLock 比起synchronized有更多的操作空间，
-	//类似定时锁等候和可中断锁等候,都可以实现,同时性能更优
-	private Lock connectionLock = new ReentrantLock();
-	
-	private final ZKEventLock eventLock = new ZKEventLock();
-	private KeeperState currentState;//ZooKeeper连接状态
-	protected final long retryTimeout;//重试超时时间
-	private boolean isZkSaslEnabled;//
-	
-	/**
-	 * 根据给出的服务地址，创建连接
-	 * @param zkServers zookeeper服务地址，
-	 * 格式采用，逗号分隔主机:端口号。
-	 *    例如 "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
-	 *    如果改变了根目录例如： "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-	 */
-	public ZKConnectionImpl(String servers) {
-	    this(servers, DEFAULT_SESSION_TIMEOUT,-1);
-	}
-	
-	
-	public ZKConnectionImpl(String servers,int sessionTimeOut) {
-	    this(servers, sessionTimeOut,-1);
-	}
+    private static final Logger  LOG = LoggerFactory.getLogger(ZKConnectionImpl.class);
+    
+    protected static final String JAVA_LOGIN_CONFIG_PARAM = "java.security.auth.login.config";
+    protected static final String ZK_SASL_CLIENT = "zookeeper.sasl.client";
+    protected static final String ZK_LOGIN_CONTEXT_NAME_KEY = "zookeeper.sasl.clientconfig";
+    
+    //session超时时间
+    private static final int DEFAULT_SESSION_TIMEOUT = 30000;
+    private final String servers;//服务器地址
+    private final int sessionTimeout;//会话超时时间
+    
+    //原生zookeeper客户端
+    private ZooKeeper zooKeeper = null;
+    //ReentrantLock 比起synchronized有更多的操作空间，
+    //类似定时锁等候和可中断锁等候,都可以实现,同时性能更优
+    private Lock connectionLock = new ReentrantLock();
+    
+    private final ZKEventLock eventLock = new ZKEventLock();
+    private KeeperState currentState;//ZooKeeper连接状态
+    protected final long retryTimeout;//重试超时时间
+    private boolean isZkSaslEnabled;//
+    
+    /**
+     * 根据给出的服务地址，创建连接
+     * @param zkServers zookeeper服务地址，
+     * 格式采用，逗号分隔主机:端口号。
+     *    例如 "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
+     *    如果改变了根目录例如： "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     */
+    public ZKConnectionImpl(String servers) {
+        this(servers, DEFAULT_SESSION_TIMEOUT,-1);
+    }
+    
+    
+    public ZKConnectionImpl(String servers,int sessionTimeOut) {
+        this(servers, sessionTimeOut,-1);
+    }
 
-	/**
-	 * 根据给出的服务地址，和会话超时时间创建连接
-	 * @param servers 服务器地址
-	 * @param sessionTimeOut 会话超时时间
-	 */
-	public ZKConnectionImpl(String servers, int sessionTimeout,int retryTimeout) {
-	    this.servers = servers;
-	    this.sessionTimeout = sessionTimeout;
-	    this.isZkSaslEnabled = isZkSaslEnabled();
-	    this.retryTimeout = retryTimeout;
-	}
+    /**
+     * 根据给出的服务地址，和会话超时时间创建连接
+     * @param servers 服务器地址
+     * @param sessionTimeOut 会话超时时间
+     */
+    public ZKConnectionImpl(String servers, int sessionTimeout,int retryTimeout) {
+        this.servers = servers;
+        this.sessionTimeout = sessionTimeout;
+        this.isZkSaslEnabled = isZkSaslEnabled();
+        this.retryTimeout = retryTimeout;
+    }
 
-	@Override
-	public void connect(Watcher watcher) {
-		connectionLock.lock();
+    @Override
+    public void connect(Watcher watcher) {
+        connectionLock.lock();
         try {
             if (zooKeeper != null) {
                 throw new ZKException("connection is already connected to server");
@@ -112,39 +112,39 @@ public class ZKConnectionImpl implements ZKConnection {
         } finally {
             connectionLock.unlock();
         }
-	}
-	
-	public void reconnect(Watcher watcher) {
-		try {
-			acquireEventLock();
-			close();
-			connect(watcher);
-		} catch (InterruptedException e) {
-		    throw new ZKInterruptedException(e);
-		} finally {
-			releaseEventLock();
-		}
-	}
+    }
+    
+    public void reconnect(Watcher watcher) {
+        try {
+            acquireEventLock();
+            close();
+            connect(watcher);
+        } catch (InterruptedException e) {
+            throw new ZKInterruptedException(e);
+        } finally {
+            releaseEventLock();
+        }
+    }
 
-	
-	@Override
-	 public <T> T retryUntilConnected(Callable<T> callable) 
-			 throws ZKInterruptedException,ZKTimeoutException, ZKException, RuntimeException {
+    
+    @Override
+     public <T> T retryUntilConnected(Callable<T> callable) 
+             throws ZKInterruptedException,ZKTimeoutException, ZKException, RuntimeException {
         final long operationStartTime = System.currentTimeMillis();
         while (true) {
             try {
-            	T retVal = callable.call();
+                T retVal = callable.call();
                 return retVal;
             } catch (ConnectionLossException e) {
                 // 当前线程交出CPU权限，让CPU去执行其他的线程
-            	// 主要是处理事件监听，将currentState置为'Disconnected'状态
+                // 主要是处理事件监听，将currentState置为'Disconnected'状态
                 Thread.yield();
                LOG.debug("Connection Disconnected waitForRetry...");
                 //等待重试
                 waitForRetry();
             } catch (SessionExpiredException e) {
-            	 // 当前线程交出CPU权限，让CPU去执行其他的线程
-            	// 主要是处理事件监听，将currentState置为'Expired'状态 
+                 // 当前线程交出CPU权限，让CPU去执行其他的线程
+                // 主要是处理事件监听，将currentState置为'Expired'状态 
                 Thread.yield();
                 LOG.debug("Session Expired waitForRetry...");
                 //等待重试
@@ -169,7 +169,7 @@ public class ZKConnectionImpl implements ZKConnection {
      */
     private void waitForRetry() {
         if (retryTimeout < 0) {
-        	 waitUntilConnected(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+             waitUntilConnected(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
             return;
         }
         waitUntilConnected(retryTimeout, TimeUnit.MILLISECONDS);
@@ -192,7 +192,7 @@ public class ZKConnectionImpl implements ZKConnection {
      * 这里使用到了EventLock的 stateChangedCondition 条件，
      * 如果当前状态不是期待的状态，则此时线程处于等待状态。
      * 1.如果事件监听器发现ZooKeeper状态改变，则会标记stateChangedCondition，当前线程被唤醒，
-     * 		当前线程继续判断是否是期待的状态，如果是则返回true，如果不是，则线程继续处于等待状态，直到下次ZooKeeper状态改变，重复上述操作。
+     *         当前线程继续判断是否是期待的状态，如果是则返回true，如果不是，则线程继续处于等待状态，直到下次ZooKeeper状态改变，重复上述操作。
      * 2.如果等待超时则直接返回false。
      * @param keeperState ZooKeeper状态
      * @param timeout 超时时间 
@@ -227,10 +227,10 @@ public class ZKConnectionImpl implements ZKConnection {
            releaseEventLock();
         }
     }
-	
+    
     @Override
-	public void close() throws InterruptedException {
-		connectionLock.lock();
+    public void close() throws InterruptedException {
+        connectionLock.lock();
         try {
             if (zooKeeper != null) {
                 LOG.debug("closing the connetion [" + servers+ "]");
@@ -241,7 +241,7 @@ public class ZKConnectionImpl implements ZKConnection {
         } finally {
             connectionLock.unlock();
         }
-	}
+    }
     
     
     private boolean isZkSaslEnabled() {
@@ -271,71 +271,71 @@ public class ZKConnectionImpl implements ZKConnection {
         }
         return isSecurityEnabled;
     }
-	
-	@Override
-	public String getServers() {
-		return servers;
-	}
-	
-	@Override
-	public ZooKeeper getZooKeeper() {
-		return zooKeeper;
-	}
-	
-	@Override
-	public ZKEventLock getEventLock(){
-		return eventLock;
-	}
-	
-	@Override
-	public void acquireEventLock(){
-		getEventLock().lock();
-	}
-	@Override
-	public void releaseEventLock(){
-		getEventLock().unlock();
-	}
-	
-	/**
+    
+    @Override
+    public String getServers() {
+        return servers;
+    }
+    
+    @Override
+    public ZooKeeper getZooKeeper() {
+        return zooKeeper;
+    }
+    
+    @Override
+    public ZKEventLock getEventLock(){
+        return eventLock;
+    }
+    
+    @Override
+    public void acquireEventLock(){
+        getEventLock().lock();
+    }
+    @Override
+    public void releaseEventLock(){
+        getEventLock().unlock();
+    }
+    
+    /**
      * 获得可中断的EventLock，在获取锁的时候被阻塞后，如果当前线程抛出interrupt信号，
      * 此线程会被唤醒并处理InterruptedException异常，不会一直阻塞下去
      * @return void
      * @author: zhaojie/zh_jie@163.com 
      * @version: 2016年5月24日 上午9:05:55
      */
-	@Override
-	public void acquireEventLockInterruptibly() {
+    @Override
+    public void acquireEventLockInterruptibly() {
         try {
             getEventLock().lockInterruptibly();
         } catch (InterruptedException e) {
             throw new ZKInterruptedException(e);
         }
     }
-	
-	@Override
-	public KeeperState getCurrentState() {
-		return currentState;
-	}
-	
-	@Override
-	public void setCurrentState(KeeperState currentState) {
-		acquireEventLock();
+    
+    @Override
+    public KeeperState getCurrentState() {
+        return currentState;
+    }
+    
+    @Override
+    public void setCurrentState(KeeperState currentState) {
+        acquireEventLock();
         try {
             this.currentState = currentState;
         } finally {
            releaseEventLock();
         }
-	}
-	
-	 /**
+    }
+    
+     /**
      * 添加认证信息，用于访问被ACL保护的节点
      * @param scheme
      * @param auth 
      * @return void
      */
-	@Override
+    @Override
     public void addAuthInfo(final String scheme, final byte[] auth) {
-    	retryUntilConnected(new Callable<Object>() {
+        retryUntilConnected(new Callable<Object>() {
             @Override
             public Object call() throws Exception {
                 getZooKeeper().addAuthInfo(scheme, auth);
