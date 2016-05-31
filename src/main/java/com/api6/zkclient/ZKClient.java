@@ -238,12 +238,14 @@ public class ZKClient  {
      * @version: 2016年5月24日 上午9:12:02
      */
     public void reconnect() {
+        LOG.info("reconnecting......");
         connection.reconnect(watcher);
         closed = false;
         //重新设置监听器
         relisten();
         //重新创建，需要创建的临时类型的节点
         recreatEphemeraleNode();
+        LOG.info("reconnecting...done");
     }
     
     /**

@@ -17,9 +17,9 @@ package com.api6.zkclient.lock;
 
 import java.util.List;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,30 +27,31 @@ import com.api6.zkclient.ZKClient;
 import com.api6.zkclient.exception.ZKInterruptedException;
 import com.api6.zkclient.exception.ZKNoNodeException;
 import com.api6.zkclient.listener.ZKChildCountListener;
+import com.api6.zkclient.listener.ZKStateListener;
 
 /**
- * 分布式锁
+ * 主从服务锁，主服务一直持有锁，断开连接，从服务获得锁
  * 非线程安全，每个线程请单独创建实例
  * @author: zhaojie/zh_jie@163.com.com 
  * @version: 2016年5月31日 下午3:48:36
  */
-public class ZKDistributedLock implements ZKLock {
-    private final static Logger logger = LoggerFactory.getLogger(ZKDistributedLock.class);
+public class ZKHALock implements ZKLock{
+    private final static Logger logger = LoggerFactory.getLogger(ZKHALock.class);
     
     private ZKClient client;
     private String lockPath;
     private String currentSeq;
     private Semaphore semaphore;
     
-    public  ZKDistributedLock(ZKClient client,String lockPach) {
+    public  ZKHALock(final ZKClient client,final String lockPach) {
         this.client = client;
         this.lockPath = lockPach;
         
-        //对lockPath进行子节点数量的监听
+      //对lockPath进行子节点数量的监听
         client.listenChildCountChanges(lockPach, new ZKChildCountListener() {
             @Override
             public void handleSessionExpired(String path, List<String> children) throws Exception {
-                //ignore
+               //ignore
             }
             
             @Override
@@ -60,25 +61,38 @@ public class ZKDistributedLock implements ZKLock {
                 }
             }
         });
+        
+        client.listenStateChanges(new ZKStateListener() {
+            @Override
+            public void handleStateChanged(KeeperState state) throws Exception {
+               if(state == KeeperState.SyncConnected){//如果重新连接
+                   //如果重连后之前的节点已删除，并且lock处于等待状态，则重新创建节点，等待获得lock
+                   if(!client.exists(lockPach+"/currentSeq") || semaphore.availablePermits()==0){
+                       String newPath = client.create(lockPath+"/1", null, CreateMode.EPHEMERAL_SEQUENTIAL);
+                       String[] paths = newPath.split("/");
+                       currentSeq = paths[paths.length - 1];
+                   }
+               }
+            }
+            
+            @Override
+            public void handleSessionError(Throwable error) throws Exception {
+                //ignore
+            }
+            
+            @Override
+            public void handleNewSession() throws Exception {
+                //ignore
+            }
+        });
+        
         if(!client.exists(lockPach)){
             throw new ZKNoNodeException("The lockPath is not exists!,please create the node.[path:"+lockPach+"]");
         }
     }
     
     @Override
-    public boolean lock(){
-        return lock(0);
-    }
-    
-    /**
-     * 获得锁
-     * @param timeout 超时时间
-     *         如果超时间大于0，则会在超时后直接返回false。
-     *         如果超时时间小于等于0，则会等待直到获取锁为止。
-     * @return 
-     * @return boolean 成功获得锁返回true，否则返回false
-     */
-    public boolean lock(int timeout) {
+    public boolean lock() {
         //信号量为0，线程就会一直等待直到数据变成正数
         semaphore = new Semaphore(0);
         String newPath = client.create(lockPath+"/1", null, CreateMode.EPHEMERAL_SEQUENTIAL);
@@ -86,19 +100,15 @@ public class ZKDistributedLock implements ZKLock {
         currentSeq = paths[paths.length - 1];
         boolean getLock = false;
         try {
-            if(timeout>0){
-                getLock = semaphore.tryAcquire(timeout, TimeUnit.MICROSECONDS);
-            }else{
-                semaphore.acquire();
-                getLock = true;
-            }
+            semaphore.acquire();
+            getLock = true;
         } catch (InterruptedException e) {
             throw new ZKInterruptedException(e);
         }
         if (getLock) {
-            logger.debug("get lock successful.");
+            logger.debug("get halock successful.");
         } else {
-            logger.debug("failed to get lock.");
+            logger.debug("failed to get halock.");
         }
         return getLock;
     }
@@ -109,7 +119,7 @@ public class ZKDistributedLock implements ZKLock {
      * @return boolean 
      *      如果释放锁成功返回true，否则返回false
      *      释放锁失败只有一种情况，就是线程正好获得锁，在释放之前，
-     *      与服务器断开连接，这时候服务器会自动删除EPHEMERAL_SEQUENTIAL节点。
+     *      与服务器断开连接，并且会话过期，这时候服务器会自动删除EPHEMERAL_SEQUENTIAL节点。
      *      在会话过期之后再删除节点就会删除失败，因为路径已经不存在了。
      */
     @Override
