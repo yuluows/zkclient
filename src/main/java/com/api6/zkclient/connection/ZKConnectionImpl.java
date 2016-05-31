@@ -34,10 +34,10 @@ import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.api6.zkclient.event.ZKEventLock;
 import com.api6.zkclient.exception.ZKException;
 import com.api6.zkclient.exception.ZKInterruptedException;
 import com.api6.zkclient.exception.ZKTimeoutException;
-import com.api6.zkclient.lock.ZKEventLock;
 import com.api6.zkclient.util.ExceptionUtil;
 
 /**

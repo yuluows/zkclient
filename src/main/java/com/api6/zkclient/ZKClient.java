@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import com.api6.zkclient.connection.ZKConnection;
 import com.api6.zkclient.connection.ZKConnectionImpl;
+import com.api6.zkclient.event.ZKEventLock;
 import com.api6.zkclient.exception.ZKException;
 import com.api6.zkclient.exception.ZKInterruptedException;
 import com.api6.zkclient.exception.ZKNoNodeException;
@@ -47,7 +48,6 @@ import com.api6.zkclient.listener.ZKChildCountListener;
 import com.api6.zkclient.listener.ZKChildDataListener;
 import com.api6.zkclient.listener.ZKListener;
 import com.api6.zkclient.listener.ZKStateListener;
-import com.api6.zkclient.lock.ZKEventLock;
 import com.api6.zkclient.serializer.SerializableSerializer;
 import com.api6.zkclient.serializer.ZKSerializer;
 import com.api6.zkclient.watcher.ZKWatcher;

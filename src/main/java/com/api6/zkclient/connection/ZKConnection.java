@@ -22,10 +22,10 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
 
+import com.api6.zkclient.event.ZKEventLock;
 import com.api6.zkclient.exception.ZKException;
 import com.api6.zkclient.exception.ZKInterruptedException;
 import com.api6.zkclient.exception.ZKTimeoutException;
-import com.api6.zkclient.lock.ZKEventLock;
 
 /**
  * ZK客户端连接接口，定义了ZKConnection所需实现的方法
