@@ -1,5 +1,5 @@
 /**
- *Copyright [2016] [zhaojie]
+ *Copyright 2016 zhaojie
  *
  *Licensed under the Apache License, Version 2.0 (the "License");
  *you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ import com.api6.zkclient.util.TestSystem;
 import com.api6.zkclient.util.TestUtil;
 import com.api6.zkclient.util.ZKServer;
 
-public class ZkClientTest {
+public class ZKClientTest {
     private TestSystem testSystem = TestSystem.getInstance();
     private ZKServer zkServer = null;
     private ZKClient zkClient = null;
