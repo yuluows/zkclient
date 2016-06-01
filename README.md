@@ -199,4 +199,4 @@
     zkClient.createRecursive(rootPath, null, CreateMode.PERSISTENT);
     //尝试获取锁
     lock.lock();
-    //获取锁成功，当前线程变为主服务后续
+    //获取锁成功，当前线程变为主服务
