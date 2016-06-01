@@ -90,7 +90,7 @@
 ###等待节点创建
 
     String path = "/test";
-    //等待直到超时或者节点创建成果。
+    //等待直到超时或者节点创建成功。
     zkClient.waitUntilExists(path, TimeUnit.MILLISECONDS, 1000*5);
     
 * * *
