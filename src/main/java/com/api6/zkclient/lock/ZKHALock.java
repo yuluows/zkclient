@@ -100,7 +100,7 @@ public class ZKHALock implements ZKLock{
             throw new ZKNoNodeException("The lockPath is not exists!,please create the node.[path:"+lockPach+"]");
         }
         
-        ZKHALock zkhaLock = newInstance(client, lockPach);
+        ZKHALock zkhaLock = new ZKHALock(client, lockPach);
         //对lockPath进行子节点数量的监听
         client.listenChildCountChanges(lockPach, zkhaLock.countListener);
         //对客户端连接状态进行监听
