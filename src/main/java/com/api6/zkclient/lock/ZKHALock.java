@@ -38,17 +38,18 @@ import com.api6.zkclient.listener.ZKStateListener;
 public class ZKHALock implements ZKLock{
     private final static Logger logger = LoggerFactory.getLogger(ZKHALock.class);
     
-    private ZKClient client;
-    private String lockPath;
+    private final ZKChildCountListener countListener;
+    private final ZKStateListener stateListener;
+    private final ZKClient client;
+    private final String lockPath;
     private String currentSeq;
     private Semaphore semaphore;
     
-    public  ZKHALock(final ZKClient client,final String lockPach) {
+    private  ZKHALock(final ZKClient client,final String lockPach) {
         this.client = client;
         this.lockPath = lockPach;
         
-      //对lockPath进行子节点数量的监听
-        client.listenChildCountChanges(lockPach, new ZKChildCountListener() {
+        countListener = new ZKChildCountListener() {
             @Override
             public void handleSessionExpired(String path, List<String> children) throws Exception {
                //ignore
@@ -60,9 +61,9 @@ public class ZKHALock implements ZKLock{
                     semaphore.release();
                 }
             }
-        });
+        };
         
-        client.listenStateChanges(new ZKStateListener() {
+        stateListener = new ZKStateListener() {
             @Override
             public void handleStateChanged(KeeperState state) throws Exception {
                if(state == KeeperState.SyncConnected){//如果重新连接
@@ -84,11 +85,30 @@ public class ZKHALock implements ZKLock{
             public void handleNewSession() throws Exception {
                 //ignore
             }
-        });
+        };
         
+        
+        
+        
+    }
+    
+    /**
+     * 创建ZKHALock实例的工厂方法
+     * @param client
+     * @param lockPach
+     * @return 
+     * @return ZKHALock
+     */
+    public static ZKHALock newInstance(final ZKClient client,final String lockPach){
         if(!client.exists(lockPach)){
             throw new ZKNoNodeException("The lockPath is not exists!,please create the node.[path:"+lockPach+"]");
         }
+        
+        ZKHALock zkhaLock = newInstance(client, lockPach);
+        //对lockPath进行子节点数量的监听
+        client.listenChildCountChanges(lockPach, zkhaLock.countListener);
+        client.listenStateChanges(zkhaLock.stateListener);
+        return zkhaLock;
     }
     
     @Override

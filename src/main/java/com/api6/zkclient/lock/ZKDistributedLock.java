@@ -36,18 +36,16 @@ import com.api6.zkclient.listener.ZKChildCountListener;
  */
 public class ZKDistributedLock implements ZKLock {
     private final static Logger logger = LoggerFactory.getLogger(ZKDistributedLock.class);
-    
+    private final ZKChildCountListener countListener;
     private ZKClient client;
     private String lockPath;
     private String currentSeq;
     private Semaphore semaphore;
     
-    public  ZKDistributedLock(ZKClient client,String lockPach) {
+    private  ZKDistributedLock(ZKClient client,String lockPach) {
         this.client = client;
         this.lockPath = lockPach;
-        
-        //对lockPath进行子节点数量的监听
-        client.listenChildCountChanges(lockPach, new ZKChildCountListener() {
+        this.countListener =  new ZKChildCountListener() {
             @Override
             public void handleSessionExpired(String path, List<String> children) throws Exception {
                 //ignore
@@ -59,10 +57,25 @@ public class ZKDistributedLock implements ZKLock {
                     semaphore.release();
                 }
             }
-        });
-        if(!client.exists(lockPach)){
+        };
+        
+    }
+    
+    /**
+     * 创建分布式锁实例的工厂方法
+     * @param client
+     * @param lockPach
+     * @return 
+     * @return ZKDistributedLock
+     */
+    public static ZKDistributedLock newInstance(ZKClient client,String lockPach) {
+       if(!client.exists(lockPach)){
             throw new ZKNoNodeException("The lockPath is not exists!,please create the node.[path:"+lockPach+"]");
-        }
+       }
+       ZKDistributedLock zkDistributedLock = new ZKDistributedLock(client, lockPach);
+       //对lockPath进行子节点数量的监听
+       client.listenChildCountChanges(lockPach,zkDistributedLock.countListener);
+       return zkDistributedLock;
     }
     
     @Override

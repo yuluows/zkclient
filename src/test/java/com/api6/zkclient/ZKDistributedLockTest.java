@@ -66,7 +66,7 @@ public class ZKDistributedLockTest {
             Thread thread1 = new Thread(new Runnable() {
                 public void run() {
                     try {
-                        ZKDistributedLock lock =new ZKDistributedLock(zkClient,lockPath);
+                        ZKDistributedLock lock = ZKDistributedLock.newInstance(zkClient,lockPath);
                         lock.lock(0);
                         integer.getAndIncrement();
                         msgList.add("thread "+integer);

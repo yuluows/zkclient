@@ -69,7 +69,7 @@ public class ZKHALockTest {
                         .servers("localhost:"+zkServer.getPort())
                         .sessionTimeout(1000)
                         .build();
-                ZKHALock lock = new ZKHALock(zkClient1, lockPach);
+                ZKHALock lock = ZKHALock.newInstance(zkClient1, lockPach);
                 //尝试获取锁，如果获取成功则变为主服务
                 lock.lock();
                 msgList.add("thread1 is master");
@@ -91,7 +91,7 @@ public class ZKHALockTest {
                         .servers("localhost:"+zkServer.getPort())
                         .sessionTimeout(1000)
                         .build();
-                ZKHALock lock = new ZKHALock(zkClient2, lockPach);
+                ZKHALock lock = ZKHALock.newInstance(zkClient2, lockPach);
               //尝试获取锁，如果获取成功则变为主服务
                 lock.lock();
                 msgList.add("thread2 is master");
@@ -115,7 +115,7 @@ public class ZKHALockTest {
                         .servers("localhost:"+zkServer.getPort())
                         .sessionTimeout(1000)
                         .build();
-                ZKHALock lock = new ZKHALock(zkClient3, lockPach);
+                ZKHALock lock = ZKHALock.newInstance(zkClient3, lockPach);
               //尝试获取锁，如果获取成功则变为主服务
                 lock.lock();
                 msgList.add("thread3 is master");
