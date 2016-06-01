@@ -57,7 +57,7 @@ public class ZKHALockTest {
      * @return void
      */
     @Test
-    public void testDistributedQueue() throws Exception{
+    public void testZKHALock() throws Exception{
         final String lockPach = "/zk/halock";
         final List<String> msgList = new ArrayList<String>();
         zkClient.createRecursive(lockPach, null, CreateMode.PERSISTENT);
@@ -74,13 +74,13 @@ public class ZKHALockTest {
                 lock.lock();
                 msgList.add("thread1 is master");
                 System.out.println("thread1 now is master!");
-                //变为主服务后3秒断开连接并重连，此时变为从服务继续等待获取锁变成主服务
                 try {
-                    Thread.sleep(1000*3);
+                    Thread.sleep(1000*1);
                     zkClient1.reconnect();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                
                 
             }
         });
@@ -96,13 +96,16 @@ public class ZKHALockTest {
                 lock.lock();
                 msgList.add("thread2 is master");
                 System.out.println("thread2 now is master!");
-                //变为主服务后3秒断开连接并重连，此时变为从服务继续等待获取锁变成主服务
                 try {
-                    Thread.sleep(1000*3);
-                    zkClient2.reconnect();
+                    Thread.sleep(1000*2);
+                    lock.unlock();
+                    zkClient2.unlistenAll();
+                    zkClient2.close();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                
+                
             }
         });
         
@@ -117,10 +120,10 @@ public class ZKHALockTest {
                 lock.lock();
                 msgList.add("thread3 is master");
                 System.out.println("thread3 now is master!");
-                //变为主服务后3秒断开连接并重连，此时变为从服务继续等待获取锁变成主服务
                 try {
                     Thread.sleep(1000*3);
-                    zkClient3.reconnect();
+                    zkClient3.unlistenAll();
+                    zkClient3.close();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -139,6 +142,7 @@ public class ZKHALockTest {
             
         }, TimeUnit.SECONDS, 100);
       assertThat(size).isEqualTo(3);
+      
         
     }
 }
