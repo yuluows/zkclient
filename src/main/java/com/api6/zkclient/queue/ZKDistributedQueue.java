@@ -52,6 +52,13 @@ public class ZKDistributedQueue<T extends Serializable> {
         }
     }
 
+    /**
+     * 创建分布式队列
+     * ZKDistributedQueue. 
+     * 
+     * @param zkClient  ZKClient客户端
+     * @param root 分布式队列根路径
+     */
     public ZKDistributedQueue(ZKClient zkClient, String root) {
         this.zkClient = zkClient;
         this.rootPath = root;
