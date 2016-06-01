@@ -86,10 +86,6 @@ public class ZKHALock implements ZKLock{
                 //ignore
             }
         };
-        
-        
-        
-        
     }
     
     /**
@@ -107,6 +103,7 @@ public class ZKHALock implements ZKLock{
         ZKHALock zkhaLock = newInstance(client, lockPach);
         //对lockPath进行子节点数量的监听
         client.listenChildCountChanges(lockPach, zkhaLock.countListener);
+        //对客户端连接状态进行监听
         client.listenStateChanges(zkhaLock.stateListener);
         return zkhaLock;
     }

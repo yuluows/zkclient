@@ -37,8 +37,8 @@ import com.api6.zkclient.listener.ZKChildCountListener;
 public class ZKDistributedLock implements ZKLock {
     private final static Logger logger = LoggerFactory.getLogger(ZKDistributedLock.class);
     private final ZKChildCountListener countListener;
-    private ZKClient client;
-    private String lockPath;
+    private final ZKClient client;
+    private final String lockPath;
     private String currentSeq;
     private Semaphore semaphore;
     
@@ -58,7 +58,6 @@ public class ZKDistributedLock implements ZKLock {
                 }
             }
         };
-        
     }
     
     /**
