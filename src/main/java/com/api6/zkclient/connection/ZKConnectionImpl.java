@@ -132,6 +132,9 @@ public class ZKConnectionImpl implements ZKConnection {
              throws ZKInterruptedException,ZKTimeoutException, ZKException, RuntimeException {
         final long operationStartTime = System.currentTimeMillis();
         while (true) {
+            if(zooKeeper == null){
+                throw new ZKException("the connection is closed.");
+            }
             try {
                 T retVal = callable.call();
                 return retVal;
