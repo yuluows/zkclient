@@ -247,7 +247,7 @@
                                 .servers("localhost:2181")
                                 .sessionTimeout(1000)
                                 .build();
-    final String lockPath = "/zk/queue";
+    final String rootPath = "/zk/queue";
     zkClient.createRecursive(rootPath, null, CreateMode.PERSISTENT);
     
     //创建分布式队列对象
