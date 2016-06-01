@@ -2,12 +2,12 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.api6</groupId>
   <artifactId>zkclient</artifactId>
-  <version>1.0</version>
+  <version>1.0.0</version>
  
     <properties>
 		<!-- jdk版本 -->
 		<java.version>1.7</java.version>
-		<zookeeper.version>3.5.1-alpha</zookeeper.version>
+		<zookeeper.version>3.4.8</zookeeper.version>
 		<junit.version>4.12</junit.version>
 		<slf4j.version>1.7.21</slf4j.version>
 		<logback.version>1.1.3</logback.version>
