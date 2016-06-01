@@ -98,7 +98,13 @@
 ##三、监听相关
 ###节点监听
 
-         zkClient.listenNodeChanges(path, new ZKNodeListener() {
+        String path = "/test";
+        ZKClient zkClient = ZKClientBuilder.newZKClient()
+                                .servers("localhost:2181")
+                                .sessionTimeout(1000)
+                                .build();
+        //注册监听
+        zkClient.listenNodeChanges(path, new ZKNodeListener() {
             @Override
             public void handleSessionExpired(String path) throws Exception {
                 System.out.println("session  expired ["+path+"]");
@@ -121,7 +127,13 @@
         });
 ###子节点数量监听
         
-         zkClient.listenChildCountChanges(path, new ZKChildCountListener() {
+        String path = "/parent";
+        ZKClient zkClient = ZKClientBuilder.newZKClient()
+                                .servers("localhost:2181")
+                                .sessionTimeout(1000)
+                                .build();
+        //注册监听
+        zkClient.listenChildCountChanges(path, new ZKChildCountListener() {
             
             @Override
             public void handleSessionExpired(String path, List<String> children) throws Exception {
@@ -135,7 +147,13 @@
         });
 ###子节点数量和子节点数据变化监听
         
+        String path = "/test";
+        ZKClient zkClient = ZKClientBuilder.newZKClient()
+                                .servers("localhost:2181")
+                                .sessionTimeout(1000)
+                                .build();
         
+        //注册监听
         zkClient.listenChildDataChanges(path, new ZKChildDataListener() {
             @Override
             public void handleSessionExpired(String path, Object data) throws Exception {
@@ -152,6 +170,33 @@
                System.out.println("children:"+children);
             }
         });
+
+###客户端状态监听
+
+    ZKClient zkClient = ZKClientBuilder.newZKClient()
+                                .servers("localhost:2181")
+                                .sessionTimeout(1000)
+                                .build();
+    //注册监听
+    zkClient.listenStateChanges(new ZKStateListener() {
+            
+            @Override
+            public void handleStateChanged(KeeperState state) throws Exception {
+                if(state==KeeperState.Expired){
+                    msgList.add("session expried");
+                }
+            }
+            
+            @Override
+            public void handleSessionError(Throwable error) throws Exception {
+                //ignore
+            }
+            
+            @Override
+            public void handleNewSession() throws Exception {
+                msgList.add("new session");
+            }
+        });
         
 * * *
 
@@ -165,7 +210,7 @@
                                 .build();
     final String lockPath = "/zk/lock";
     zkClient.createRecursive(lockPath, null, CreateMode.PERSISTENT);
-    //创建分布式锁
+    //创建分布式锁， 非线程安全类，每个线程请创建单独实例。
     ZKDistributedLock lock = ZKDistributedLock.newInstance(zkClient,lockPath);
    
     lock.lock(); //获得锁
@@ -197,6 +242,9 @@
                                 .build();
     final String lockPath = "/zk/halock";
     zkClient.createRecursive(rootPath, null, CreateMode.PERSISTENT);
+    
+    //创建锁， 非线程安全类，每个线程请创建单独实例。
+    ZKHALock lock = ZKHALock.newInstance(zkClient, lockPach);
     //尝试获取锁
     lock.lock();
     //获取锁成功，当前线程变为主服务
