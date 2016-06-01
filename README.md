@@ -69,6 +69,7 @@
         boolean flag =  zkClient.delete("/test",1);//删除指定版本
         
 2. 递归删除（删除节点及子节点）
+
         String path = "/test8/1/2/3";
         //递归删除子节点
         zkClient.deleteRecursive(path);
