@@ -72,10 +72,11 @@ public class ZKClient  {
     
     private final ZKConnection connection;//连接
     private final ZKWatcher watcher;//监听器
-    private boolean shutdownTrigger;//触发关闭的标记，如果为true证明正在关闭客户端及连接
     private final ZKSerializer serializer;//序列化工具
-    private volatile boolean closed;//是否已关闭客户端的标记
     private final int eventThreadPoolSize; //线程池的大小，同时也是并发线程数
+    
+    private volatile boolean closed;//是否已关闭客户端的标记
+    private volatile boolean shutdownTrigger;//触发关闭的标记，如果为true证明正在关闭客户端及连接
     
     /**
      * 创建ZKClient客户端
