@@ -16,6 +16,7 @@
         ZKClient zkClient4 = new ZKClient(address,500,1000*60,new BytesSerializer());
         ZKClient zkClient5 = new ZKClient(address,500,1000*60,new BytesSerializer(),Integer.MAX_VALUE);
         ZKClient zkClient6 = new ZKClient(address,500,1000*60,new BytesSerializer(),Integer.MAX_VALUE,2);
+        
 2. 使用辅助建造类
 
         ZKClient zkClient = ZKClientBuilder.newZKClient(address)
@@ -126,7 +127,6 @@
         String path = "/test";
         ZKClient zkClient = ZKClientBuilder.newZKClient()
                                 .servers("localhost:2181")
-                                .sessionTimeout(1000)
                                 .build();
         //注册监听
         zkClient.listenNodeChanges(path, new ZKNodeListener() {
@@ -153,10 +153,7 @@
 ###子节点数量监听
         
         String path = "/parent";
-        ZKClient zkClient = ZKClientBuilder.newZKClient()
-                                .servers("localhost:2181")
-                                .sessionTimeout(1000)
-                                .build();
+        ZKClient zkClient = ZKClientBuilder.newZKClient("localhost:2181").build();
         //注册监听
         zkClient.listenChildCountChanges(path, new ZKChildCountListener() {
             
@@ -176,7 +173,6 @@
         String path = "/test";
         ZKClient zkClient = ZKClientBuilder.newZKClient()
                                 .servers("localhost:2181")
-                                .sessionTimeout(1000)
                                 .build();
         
         //注册监听
@@ -201,7 +197,6 @@
 
     ZKClient zkClient = ZKClientBuilder.newZKClient()
                                 .servers("localhost:2181")
-                                .sessionTimeout(1000)
                                 .build();
     //注册监听
     zkClient.listenStateChanges(new ZKStateListener() {
@@ -230,7 +225,6 @@
 
     ZKClient zkClient = ZKClientBuilder.newZKClient()
                                 .servers("localhost:2181")
-                                .sessionTimeout(1000)
                                 .build();
     final String lockPath = "/zk/lock";
     zkClient.createRecursive(lockPath, null, CreateMode.PERSISTENT);
@@ -247,7 +241,6 @@
     
     ZKClient zkClient = ZKClientBuilder.newZKClient()
                                 .servers("localhost:2181")
-                                .sessionTimeout(1000)
                                 .build();
     final String rootPath = "/zk/queue";
     zkClient.createRecursive(rootPath, null, CreateMode.PERSISTENT);
@@ -265,7 +258,6 @@
 
     ZKClient zkClient = ZKClientBuilder.newZKClient()
                                 .servers("localhost:2181")
-                                .sessionTimeout(1000)
                                 .build();
     final String lockPath = "/zk/halock";
     zkClient.createRecursive(rootPath, null, CreateMode.PERSISTENT);
