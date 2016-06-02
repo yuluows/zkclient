@@ -80,9 +80,8 @@
         
 2. 递归删除（删除节点及子节点）
 
-        String path = "/test8/1/2/3";
-        //递归删除子节点
-        zkClient.deleteRecursive(path);
+        String path = "/test";
+        zkClient.deleteRecursive(path);//如果/test下有多个子节点，会被一并删除
 
 
 ###获取节点数据
@@ -239,8 +238,11 @@
     ZKDistributedLock lock = ZKDistributedLock.newInstance(zkClient,lockPath);
    
     lock.lock(); //获得锁
+    
     //do someting
+    
     lock.unlock();//释放锁
+    
 ###分布式队列
     
     ZKClient zkClient = ZKClientBuilder.newZKClient()
@@ -252,12 +254,12 @@
     
     //创建分布式队列对象
     ZKDistributedQueue<String> queue = new ZKDistributedQueue(zkClient, rootPath);
-    //放入元素
-    queue.offer("123");
-    //删除并获取顶部元素
-    String value = queue.poll();
-    //获取顶部元素，不会删除
-    String value =  queue.peek();
+    
+    queue.offer("123");//放入元素
+    
+    String value = queue.poll();//删除并获取顶部元素
+   
+    String value =  queue.peek(); //获取顶部元素，不会删除
     
 ###主从服务锁
 
@@ -270,6 +272,9 @@
     
     //创建锁， 非线程安全类，每个线程请创建单独实例。
     ZKHALock lock = ZKHALock.newInstance(zkClient, lockPach);
-    //尝试获取锁
-    lock.lock();
-    //获取锁成功，当前线程变为主服务
+    
+    lock.lock();//尝试获取锁
+    
+    //获取锁成功，当前线程变为主服务。
+    //直到主服务宕机或与zk服务端断开连接，才会释放锁。
+    //此时从服务尝试获得锁，选取一个从服务变为主服务
