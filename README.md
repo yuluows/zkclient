@@ -9,7 +9,7 @@
 
 1. 使用构造函数创建
 
-        String address = "localhost:"+zkServer.getPort();
+        String address = "localhost:2181";
         ZKClient zkClient1 = new ZKClient(address);
         ZKClient zkClient2 = new ZKClient(address,500);
         ZKClient zkClient3 = new ZKClient(address,500,1000*60);
@@ -19,6 +19,7 @@
         
 2. 使用辅助类创建
 
+        String address = "localhost:2181";
         ZKClient zkClient = ZKClientBuilder.newZKClient(address)
                             .sessionTimeout(1000)//可选
                             .serializer(new SerializableSerializer())//可选
@@ -39,6 +40,7 @@
         zkClient.create("/test1-1",123,CreateMode.EPHEMERAL_SEQUENTIAL);
         zkClient.create("/test1-2",123,CreateMode.PERSISTENT);
         zkClient.create("/test1-3",123,CreateMode.PERSISTENT_SEQUENTIAL);
+        
 2. 递归新增节点（新增节点及其父节点）
 
     如果父节点不存在会被一并创建。
