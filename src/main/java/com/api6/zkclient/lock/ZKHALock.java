@@ -148,20 +148,21 @@ public class ZKHALock implements ZKLock{
     /**
      * 判断路径是否可以获得锁，如果checkPath 对应的序列是所有子节点中最小的，则可以获得锁。
      * @param checkPath 需要判断的路径
-     * @param allChildPath 所有的子路径
+     * @param children 所有的子路径
      * @return boolean 如果可以获得锁返回true，否则，返回false;
      */
-    private boolean check(String checkPath, List<String> allChildPath) {
-        if(allChildPath==null || !allChildPath.contains(checkPath)){
+    private boolean check(String checkPath, List<String> children) {
+        if(children==null || !children.contains(checkPath)){
             return false;
         }
+      //判断checkPath 是否是children中的最小值，如果是返回true，不是返回false
         Long chePathSeq = Long.parseLong(checkPath);
         boolean isLock = true;
-        for (String path : allChildPath) {
+        for (String path : children) {
             Long pathSeq = Long.parseLong(path);
             if (chePathSeq > pathSeq) {
                 isLock = false;
-                continue;
+                break;
             }
         }
         return isLock;
