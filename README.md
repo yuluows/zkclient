@@ -17,7 +17,7 @@
         ZKClient zkClient5 = new ZKClient(address,500,1000*60,new BytesSerializer(),Integer.MAX_VALUE);
         ZKClient zkClient6 = new ZKClient(address,500,1000*60,new BytesSerializer(),Integer.MAX_VALUE,2);
         
-2. 使用辅助建造类
+2. 使用辅助类创建
 
         ZKClient zkClient = ZKClientBuilder.newZKClient(address)
                             .sessionTimeout(1000)//可选
