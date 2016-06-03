@@ -217,9 +217,8 @@ public class ZKConnectionImpl implements ZKConnection {
                     return false;
                 }
                 stillWaiting = getEventLock().getStateChangedCondition().awaitUntil(timeoutDate);
-                // Throw an exception in the case authorization fails
                 if (currentState == KeeperState.AuthFailed && isZkSaslEnabled) {
-                    throw new ZKException("认证失败");
+                    throw new ZKException("authorization failed");
                 }
             }
             LOG.info("ZooKeeper State is " + currentState);
