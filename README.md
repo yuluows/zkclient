@@ -47,7 +47,7 @@
     
     对于PERSISTENT类型的节点，递归创建，父节点和子节点都创建为PERSISTENT。
     
-    对于EPHEMERAL类型的节点，递归创建，父节点都是PERSISTENT类型，而最后一级节点才是EPHEMERAL类型。（因为EPHEMERAL不能拥有父节点）
+    对于EPHEMERAL类型的节点，递归创建，父节点都是PERSISTENT类型，而最后一级节点才是EPHEMERAL类型。（因为EPHEMERAL不能拥有子节点）
     
     注意：第二个参数为节点的值，指的的最后一级节点的值。
         
