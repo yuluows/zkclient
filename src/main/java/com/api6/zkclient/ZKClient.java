@@ -196,9 +196,9 @@ public class ZKClient  {
         this.connection = connection;
         this.serializer = zkSerializer;
         this.eventThreadPoolSize = eventThreadPoolSize;
-        this.watcher = new ZKWatcher(this);
         //创建事件处理线程池
         eventThreadPool = new ZKEventThreadPool(eventThreadPoolSize);
+        this.watcher = new ZKWatcher(this);
         start(connectionTimeout,watcher);
     }
     
