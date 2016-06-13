@@ -58,7 +58,7 @@ public class ZKEventThreadPool {
      */
     public void destory() {
         if(pool != null) {
-            pool.shutdownNow();
+            pool.shutdown();
         }
     }
     

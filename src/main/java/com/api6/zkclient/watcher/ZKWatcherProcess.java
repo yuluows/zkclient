@@ -46,7 +46,7 @@ public class ZKWatcherProcess {
     
     public ZKWatcherProcess(ZKClient zkClient) {
         this.client = zkClient;
-        eventThreadPool = new ZKEventThreadPool(zkClient.getEventThreadPoolSize());
+        eventThreadPool = zkClient.getEventThreadPool();
     }
     
     public void processStateChanged(WatchedEvent event) {
