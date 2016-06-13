@@ -99,5 +99,13 @@ public class ZKWatcher implements Watcher {
             client.releaseEventLock();
         }
     }
+    
+    /**
+     * 停止监听
+     * @return void
+     */
+    public void stop(){
+        process.stop();
+    }
 
 }

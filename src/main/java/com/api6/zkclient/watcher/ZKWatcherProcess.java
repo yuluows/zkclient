@@ -46,7 +46,16 @@ public class ZKWatcherProcess {
     
     public ZKWatcherProcess(ZKClient zkClient) {
         this.client = zkClient;
-        eventThreadPool = zkClient.getEventThreadPool();
+        //创建事件处理线程池
+        eventThreadPool = new ZKEventThreadPool(zkClient.getEventThreadPoolSize());
+    }
+    
+    /**
+     * 停止处理
+     * @return void
+     */
+    public void stop(){
+        eventThreadPool.destory();
     }
     
     public void processStateChanged(WatchedEvent event) {

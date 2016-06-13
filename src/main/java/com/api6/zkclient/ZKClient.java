@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 import com.api6.zkclient.connection.ZKConnection;
 import com.api6.zkclient.connection.ZKConnectionImpl;
 import com.api6.zkclient.event.ZKEventLock;
-import com.api6.zkclient.event.ZKEventThreadPool;
 import com.api6.zkclient.exception.ZKException;
 import com.api6.zkclient.exception.ZKInterruptedException;
 import com.api6.zkclient.exception.ZKNoNodeException;
@@ -75,7 +74,6 @@ public class ZKClient  {
     private final ZKWatcher watcher;//监听器
     private final ZKSerializer serializer;//序列化工具
     private final int eventThreadPoolSize; //线程池的大小，同时也是并发线程数
-    private final ZKEventThreadPool eventThreadPool;//事件处理线程池
     
     private volatile boolean closed;//是否已关闭客户端的标记
     private volatile boolean shutdownTrigger;//触发关闭的标记，如果为true证明正在关闭客户端及连接
@@ -196,10 +194,8 @@ public class ZKClient  {
         this.connection = connection;
         this.serializer = zkSerializer;
         this.eventThreadPoolSize = eventThreadPoolSize;
-        //创建事件处理线程池
-        eventThreadPool = new ZKEventThreadPool(eventThreadPoolSize);
         this.watcher = new ZKWatcher(this);
-        start(connectionTimeout,watcher);
+        start(connectionTimeout,watcher); 
     }
     
     /**
@@ -286,10 +282,9 @@ public class ZKClient  {
             shutdownTrigger = true;
             connection.close();
             closed = true;
-            //取消监听
+            //停止监听
             unlistenAll();
-            //销毁监听线程池
-            eventThreadPool.destory();
+            watcher.stop();
         } catch (InterruptedException e) {
             throw new ZKInterruptedException(e);
         } finally {
@@ -1186,10 +1181,5 @@ public class ZKClient  {
     public int getEventThreadPoolSize() {
         return eventThreadPoolSize;
     }
-
-    public ZKEventThreadPool getEventThreadPool() {
-        return eventThreadPool;
-    }
-    
     
 }
