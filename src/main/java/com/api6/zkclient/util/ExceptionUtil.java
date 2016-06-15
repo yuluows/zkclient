@@ -28,7 +28,7 @@ public class ExceptionUtil {
     }
 
     /**
-     * 如果catch {@link InterruptedException}异常，为当前线程设置interrupt标记
+     * 如果catch {@link InterruptedException}异常，重置当前线程interrupt标记
      * @param catchedException
      */
     public static void retainInterruptFlag(Throwable catchedException) {
