@@ -142,6 +142,15 @@ public class ZKClientTest {
         zkClient.create(path, "123", CreateMode.EPHEMERAL);
         zkClient.setData(path, "456");
         assertThat(zkClient.getData(path)).isEqualTo("456");
+        try {
+            zkClient.setData(path, "456",2);
+            fail();
+        } catch (ZKException e) {
+            
+        }
+        zkClient.setData(path, "123",1);
+        assertThat(zkClient.getData(path)).isEqualTo("123");
+        
     }
 
 
