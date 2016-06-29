@@ -125,6 +125,9 @@ public class ZKLeaderSelector {
        if(isQueued.get() == false){
            isInterrupted.set(false);
            isQueued.set(true);
+           if(ourTask.get() != null) {
+               ourTask.get().cancel(true);
+           }
            
            Future<Void> task = executorService.submit(new Callable<Void>() {
             @Override
