@@ -68,7 +68,7 @@ public class ZKHALock implements ZKLock{
             public void handleStateChanged(KeeperState state) throws Exception {
                if(state == KeeperState.SyncConnected){//如果重新连接
                    //如果重连后之前的节点已删除，并且lock处于等待状态，则重新创建节点，等待获得lock
-                   if(!client.exists(lockPach+"/currentSeq") || semaphore.availablePermits()==0){
+                   if(!client.exists(lockPach+"/"+currentSeq) || semaphore.availablePermits()==0){
                        String newPath = client.create(lockPath+"/1", null, CreateMode.EPHEMERAL_SEQUENTIAL);
                        String[] paths = newPath.split("/");
                        currentSeq = paths[paths.length - 1];
