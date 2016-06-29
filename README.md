@@ -72,6 +72,7 @@
     
     String path = "/test";
     zkClient.setData(path, "456");
+    //带期望版本号的更新，如果真实的版本号与期望版本号不一致会更新失败，抛出异常
     zkClient.setData(path, "123", 2);
     
 
