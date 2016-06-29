@@ -30,6 +30,11 @@ import com.api6.zkclient.exception.ZKException;
 import com.api6.zkclient.listener.ZKStateListener;
 import com.api6.zkclient.lock.ZKDistributedLock;
 
+/**
+ * 选举Leader
+ * @author: zhaojie/zh_jie@163.com.com 
+ * @version: 2016年6月29日 下午8:51:03
+ */
 public class ZKLeaderSelector {
     private final ZKClient client;
     private final ZKDistributedLock lock;
@@ -50,6 +55,16 @@ public class ZKLeaderSelector {
         CLOSED
     }
     
+    /**
+     * 创建Leader选举对象
+     * ZKLeaderSelector. 
+     * 
+     * @param id 每个Leader选举的参与者都有一个ID标识，用于区分各个参与者。
+     * @param autoRequue 是否在由于网络问题造成与服务器断开连接后，自动参与到选举队列中。
+     * @param client ZKClient
+     * @param leaderPath 选举的路径
+     * @param listener 成为Leader后执行的的监听器
+     */
     public ZKLeaderSelector(String id,Boolean autoRequue,ZKClient client, String leaderPath, ZKLeaderSelectorListener listener) {
         this.client = client;
         this.autoRequeue.set(autoRequue);
@@ -137,7 +152,7 @@ public class ZKLeaderSelector {
     }
     
     /**
-     * 
+     * 获得当前的所有参与者的路径名
      * @return 
      * @return List<String>
      */

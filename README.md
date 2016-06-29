@@ -240,6 +240,33 @@
     
     lock.unlock();//释放锁
     
+###Leader选举
+Leader选举是异步的，只需要调用selector.start()就会启动并参与Leader选举，如果成为了主服务，则会执行监听器ZKLeaderSelectorListener。
+    
+    ZKClient zkClient = ZKClientBuilder.newZKClient()
+                                .servers("localhost:2181")
+                                .build();
+    final String lockPath = "/zk/leader";
+    final ZKLeaderSelector selector = new ZKLeaderSelector("service1", true, zkClient1, leaderPath, 
+        new ZKLeaderSelectorListener() {
+            
+            //成为Leader后的回调函数        
+            @Override
+            public void takeLeadership(ZKClient client, ZKLeaderSelector selector) {
+                //在这里可以编写，成为主服务后需要做的事情。
+                System.out.println("I am the leader-"+selector.getLeader());
+            }
+        });
+    //启动并参与Leader选举
+    selector.start();
+    
+    //获得当前主服务的ID
+    selector.getLeader();
+    
+    //如果要退出Leader选举
+    selector.close();
+    
+    
 ###分布式队列
     
     ZKClient zkClient = ZKClientBuilder.newZKClient()
