@@ -760,6 +760,18 @@ public class ZKClientTest {
         zkClient.addAuthInfo("digest", "user:passwd".getBytes());
         zkClient.create("/path1", null, ZooDefs.Ids.CREATOR_ALL_ACL, CreateMode.PERSISTENT);
         zkClient.getData("/path1");
+        ZKClient zkClient1 = ZKClientBuilder.newZKClient()
+                .servers("localhost:"+zkServer.getPort())
+                .sessionTimeout(1000)
+                .build();
+        try {
+            zkClient1.getData("/path1");
+            fail();
+        } catch (ZKException e) {
+        }
+        zkClient1.addAuthInfo("digest","user:passwd".getBytes() );
+        zkClient1.setData("/path1","123");
+        assertThat("123".equals( zkClient1.getData("/path1")));
     }
 
     @Test
