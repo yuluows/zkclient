@@ -15,6 +15,8 @@
  */
 package com.api6.zkclient.lock;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +43,7 @@ public class ZKDistributedLock implements ZKLock {
     private final String lockPath;
     private String currentSeq;
     private Semaphore semaphore;
+    private String lockNodeData;
     
     private  ZKDistributedLock(ZKClient client,String lockPach) {
         this.client = client;
@@ -93,7 +96,7 @@ public class ZKDistributedLock implements ZKLock {
     public boolean lock(int timeout) {
         //信号量为0，线程就会一直等待直到数据变成正数
         semaphore = new Semaphore(0);
-        String newPath = client.create(lockPath+"/1", null, CreateMode.EPHEMERAL_SEQUENTIAL);
+        String newPath = client.create(lockPath+"/1", lockNodeData, CreateMode.EPHEMERAL_SEQUENTIAL);
         String[] paths = newPath.split("/");
         currentSeq = paths[paths.length - 1];
         boolean getLock = false;
@@ -114,7 +117,12 @@ public class ZKDistributedLock implements ZKLock {
         }
         return getLock;
     }
+    
 
+    public void setLockNodeData(String lockNodeData){
+       this.lockNodeData = lockNodeData;
+    }
+    
     /**
      * 释放锁
      * @return 
@@ -129,6 +137,27 @@ public class ZKDistributedLock implements ZKLock {
        return client.delete(lockPath+"/"+currentSeq);
     }
     
+    /**
+     * 获得所有参与者的节点名称
+     * @return 
+     * @return List<String>
+     */
+    public List<String> getParticipantNodes(){
+       List<String> children = client.getChildren(lockPath);
+        Collections.sort
+        (
+              children,
+            new Comparator<String>()
+            {
+                @Override
+                public int compare(String lhs, String rhs)
+                {
+                    return lhs.compareTo(rhs);
+                }
+            }
+        );
+        return children;
+    }
     
     /**
      * 判断路径是否可以获得锁，如果checkPath 对应的序列是所有子节点中最小的，则可以获得锁。

@@ -71,7 +71,7 @@ public class ZKDistributedLockTest {
                         integer.getAndIncrement();
                         msgList.add("thread "+integer);
                         System.out.println("Thread "+integer+" got lock........");
-                        
+                        System.out.println(lock.getParticipantNodes());
                         if(integer.get()==3){
                             Thread.sleep(1000);
                         }
