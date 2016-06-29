@@ -952,7 +952,9 @@ public class ZKClient  {
      * 设置节点的值
      * @param path 节点路径
      * @param object 需要设置的值
-     * @param version 版本号
+     * @param version 期望版本号
+     *      如果version为-1，则是对最新版本的更新；
+     *      如果version大于等于0，如果更新的时候发现真实的版本号不等于期望的版本号，会更新失败。
      * @return Stat Stat 返回stat信息
      */
     public Stat setData(final String path, Object datat, final int version) {
