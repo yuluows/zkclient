@@ -18,5 +18,5 @@ package com.api6.zkclient.leader;
 import com.api6.zkclient.ZKClient;
 
 public interface ZKLeaderSelectorListener {
-    void takeLeadership(ZKClient client, ZKLeaderSelector selector);
+    void takeLeadership(ZKClient client, LeaderSelector selector);
 }

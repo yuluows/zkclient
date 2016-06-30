@@ -29,13 +29,13 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.api6.zkclient.leader.LeaderSelector;
-import com.api6.zkclient.leader.ZKLeaderSelector;
+import com.api6.zkclient.leader.ZKLeaderDelySelector;
 import com.api6.zkclient.leader.ZKLeaderSelectorListener;
 import com.api6.zkclient.util.TestSystem;
 import com.api6.zkclient.util.TestUtil;
 import com.api6.zkclient.util.ZKServer;
 
-public class ZKLeaderSelectorTest {
+public class ZKLeaderDelaySelectorTest {
     
     private TestSystem testSystem = TestSystem.getInstance();
     private ZKServer zkServer = null;
@@ -60,14 +60,14 @@ public class ZKLeaderSelectorTest {
      * @return void
      */
     @Test
-    public void testZKLeaderSeletor() throws Exception{
+    public void testZKLeaderDelaySeletor() throws Exception{
         final String leaderPath = "/zk/leader";
         final List<String> msgList = new ArrayList<String>();
-        final CountDownLatch latch = new CountDownLatch(20);
-        final CountDownLatch latch1 = new CountDownLatch(20);
+        final CountDownLatch latch = new CountDownLatch(5);
+        final CountDownLatch latch1 = new CountDownLatch(5);
         zkClient.createRecursive(leaderPath, null, CreateMode.PERSISTENT);
         final AtomicInteger index = new AtomicInteger(0);
-        for(int i=0;i<20;i++){
+        for(int i=0;i<5;i++){
             final String name = "server:"+index.get();
             
             Thread thread1 = new Thread(new Runnable() {
@@ -76,11 +76,18 @@ public class ZKLeaderSelectorTest {
                             .servers("localhost:"+zkServer.getPort())
                             .sessionTimeout(1000)
                             .build();
-                   final ZKLeaderSelector selector = new ZKLeaderSelector(name, true, zkClient1, leaderPath, new ZKLeaderSelectorListener() {
+                   final LeaderSelector selector = new ZKLeaderDelySelector(name, true,3000, zkClient1, leaderPath, new ZKLeaderSelectorListener() {
                         
                         @Override
                         public void takeLeadership(ZKClient client, LeaderSelector selector) {
                             msgList.add(name+" I am the leader");
+                           
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
                             System.out.println(name+": I am the leader-"+selector.getLeader());
                             selector.close();
                             latch1.countDown();
@@ -88,7 +95,6 @@ public class ZKLeaderSelectorTest {
                     });
                     
                     try {
-                        System.out.println(name+":waiting");
                         latch.await();
                     } catch (InterruptedException e1) {
                         e1.printStackTrace();
@@ -110,7 +116,7 @@ public class ZKLeaderSelectorTest {
         
         
       //等待事件到达
-       int size = TestUtil.waitUntil(20, new Callable<Integer>() {
+       int size = TestUtil.waitUntil(5, new Callable<Integer>() {
             @Override
             public Integer call() throws Exception {
                 return msgList.size();
@@ -118,26 +124,34 @@ public class ZKLeaderSelectorTest {
             
        }, TimeUnit.SECONDS, 100);
        
-      assertThat(size).isEqualTo(20);
+      assertThat(size).isEqualTo(5);
     }
     
+    
+    /**
+     * 由于具有延迟选举的功能，只要Leader重连的时间没有超过超时时间3秒，则之前leader所在线程重连后依旧是Leader
+     * @throws Exception 
+     * @return void
+     */
     @Test
-    public void testZKLeaderSeletor1() throws Exception{
+    public void testZKLeaderDelaySeletor1() throws Exception{
         final String leaderPath = "/zk/leader";
         final List<String> msgList = new ArrayList<String>();
         zkClient.createRecursive(leaderPath, null, CreateMode.PERSISTENT);
         
-        final LeaderSelector selector = new ZKLeaderSelector("server1", true, zkClient, leaderPath, new ZKLeaderSelectorListener() {
+        final LeaderSelector selector = new ZKLeaderDelySelector("server1", true,3000, zkClient, leaderPath, new ZKLeaderSelectorListener() {
             
             @Override
             public void takeLeadership(ZKClient client, LeaderSelector selector) {
+                msgList.add("server1 I am the leader");
+               
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                msgList.add("server1 I am the leader");
                 System.out.println("server1: I am the leader-"+selector.getLeader());
+                zkClient.reconnect();
             }
         });
         
@@ -149,19 +163,18 @@ public class ZKLeaderSelectorTest {
                         .servers("localhost:"+zkServer.getPort())
                         .sessionTimeout(1000)
                         .build();
-               final LeaderSelector selector = new ZKLeaderSelector("server2", true, zkClient1, leaderPath, new ZKLeaderSelectorListener() {
+               final LeaderSelector selector = new ZKLeaderDelySelector("server2", true,3000, zkClient1, leaderPath, new ZKLeaderSelectorListener() {
                     
                     @Override
                     public void takeLeadership(ZKClient client, LeaderSelector selector) {
+                        msgList.add("server2 I am the leader");
+                       
                         try {
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                        
-                        msgList.add("server2 I am the leader");
                         System.out.println("server2: I am the leader-"+selector.getLeader());
-                       
                         selector.close();
                     }
                 });
@@ -171,9 +184,69 @@ public class ZKLeaderSelectorTest {
         
         selector.start();
         thread1.start();
-        Thread.sleep(1000);
-        zkClient.reconnect();
+        
+        
+      //等待事件到达
+       int size = TestUtil.waitUntil(1, new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception {
+                return msgList.size();
+            }
+            
+       }, TimeUnit.SECONDS, 100);
        
+      assertThat(size).isEqualTo(1);
+    }
+    
+    @Test
+    public void testZKLeaderDelaySeletor2() throws Exception{
+        final String leaderPath = "/zk/leader";
+        final List<String> msgList = new ArrayList<String>();
+        zkClient.createRecursive(leaderPath, null, CreateMode.PERSISTENT);
+        
+        final LeaderSelector selector = new ZKLeaderDelySelector("server1", true,1, zkClient, leaderPath, new ZKLeaderSelectorListener() {
+            
+            @Override
+            public void takeLeadership(ZKClient client, LeaderSelector selector) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                msgList.add("server1 I am the leader");
+                System.out.println("server1: I am the leader-"+selector.getLeader());
+                zkClient.reconnect();
+            }
+        });
+        
+        
+        
+        Thread thread1 = new Thread(new Runnable() {
+            public void run() {
+                final ZKClient zkClient1 = ZKClientBuilder.newZKClient()
+                        .servers("localhost:"+zkServer.getPort())
+                        .sessionTimeout(1000)
+                        .build();
+               final LeaderSelector selector = new ZKLeaderDelySelector("server2", true,1, zkClient1, leaderPath, new ZKLeaderSelectorListener() {
+                    
+                    @Override
+                    public void takeLeadership(ZKClient client, LeaderSelector selector) {
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        msgList.add("server2 I am the leader");
+                        System.out.println("server2: I am the leader-"+selector.getLeader());
+                        selector.close();
+                    }
+                });
+                selector.start();
+            }
+        });
+        
+        selector.start();
+        thread1.start();
         
         
       //等待事件到达
@@ -184,7 +257,7 @@ public class ZKLeaderSelectorTest {
             }
             
        }, TimeUnit.SECONDS, 100);
-       System.out.println(msgList);
+       
       assertThat(size).isEqualTo(3);
     }
 }
