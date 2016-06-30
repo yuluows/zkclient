@@ -36,6 +36,7 @@ import com.api6.zkclient.lock.ZKDistributedLock;
  * @version: 2016年6月29日 下午8:51:03
  */
 public class ZKLeaderSelector {
+    private final String id;
     private final ZKClient client;
     private final ZKDistributedLock lock;
     private final String leaderPath;
@@ -66,11 +67,12 @@ public class ZKLeaderSelector {
      * @param listener 成为Leader后执行的的监听器
      */
     public ZKLeaderSelector(String id,Boolean autoRequue,ZKClient client, String leaderPath, ZKLeaderSelectorListener listener) {
+        this.id = id;
         this.client = client;
         this.autoRequeue.set(autoRequue);
         this.leaderPath = leaderPath;
         this.lock = ZKDistributedLock.newInstance(client, leaderPath);
-        this.lock.setLockNodeData(id);
+        this.lock.setLockNodeData(this.id);
         this.executorService = Executors.newSingleThreadExecutor();
         this.listener = listener;
         
@@ -154,6 +156,15 @@ public class ZKLeaderSelector {
         return null;
     }
     
+    public boolean isLeader(){
+        if (client.getCurrentState() == KeeperState.SyncConnected ){
+            if(lock.getParticipantNodes().size()>0){
+                return id.equals(client.getData(leaderPath+"/"+lock.getParticipantNodes().get(0)));
+            }
+        }
+        
+        return false;
+    }
     /**
      * 获得当前的所有参与者的路径名
      * @return 
