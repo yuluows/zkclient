@@ -240,6 +240,24 @@
     
     lock.unlock();//释放锁
     
+###延迟获取分布式锁
+网络闪断会引起短暂的网络断开，这个时间很短，但是却给分布式锁带来很大的麻烦。
+例如线程1获得了分布式锁，但是却发生网络的短暂断开，只要网路断开，分布式锁就会释放，其实线程1的工作一直在进行，并没有完成也没有宕机。
+显然，由于网络短暂的断开引起的锁释放一般情况下不是我们想要的。所以提供了，具有延迟功能的分布式锁。
+如果线程1获得了锁，并发生网络闪断，那么其他线程并不会立即尝试获取锁，而是会等待一段时间，如果再这段时间内线程1成功连接上，那么线程1将继续持有锁。
+
+    String lockPath = "/zk/delaylock";
+    ZKClient zkClient1 = ZKClientBuilder.newZKClient()
+                            .servers("localhost:"+zkServer.getPort())
+                            .sessionTimeout(1000)
+                            .build();
+    ZKDistributedDelayLock lock = ZKDistributedDelayLock.newInstance(zkClient1, lockPach);
+    lock.lock(); //获得锁
+    
+    //do someting
+    
+    lock.unlock();//释放锁
+    
 ###Leader选举
 Leader选举是异步的，只需要调用selector.start()就会启动并参与Leader选举，如果成为了主服务，则会执行监听器ZKLeaderSelectorListener。
     
@@ -255,6 +273,41 @@ Leader选举是异步的，只需要调用selector.start()就会启动并参与L
             public void takeLeadership(ZKClient client, ZKLeaderSelector selector) {
                 //在这里可以编写，成为主服务后需要做的事情。
                 System.out.println("I am the leader-"+selector.getLeader());
+            }
+        });
+    //启动并参与Leader选举
+    selector.start();
+    
+    //获得当前主服务的ID
+    selector.getLeader();
+    
+    //如果要退出Leader选举
+    selector.close();
+    
+    
+###延迟Leader选举
+例如线程1被选举为Leader，但是却发生网络的短暂断开，只要网路断开，其他线程会认为Leader宕机，会重新选举Leader，其实线程1的工作一直在继续并没有宕机。
+显然，由于网络短暂的断开引起的这种情况不是我们需要的。
+延迟Leader选举类是这样解决的，如果线程1成为了Leader，并发生网络闪断，那么其他线程并不会立即竞争Leader，而是会等待一段时间，如果再这段时间内线程1成功连接上，那么线程1保持Leader的角色。
+
+    ZKClient zkClient = ZKClientBuilder.newZKClient()
+                                .servers("localhost:2181")
+                                .build();
+    String lockPath = "/zk/delayleader";
+    //延迟3秒选举
+    LeaderSelector selector = new ZKLeaderDelySelector("server1", true,3000, zkClient, leaderPath, new ZKLeaderSelectorListener() {
+            
+            @Override
+            public void takeLeadership(ZKClient client, LeaderSelector selector) {
+                msgList.add("server1 I am the leader");
+               
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("server1: I am the leader-"+selector.getLeader());
+                zkClient.reconnect();
             }
         });
     //启动并参与Leader选举
