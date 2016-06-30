@@ -50,7 +50,7 @@ public class ZKLeaderDelySelector implements LeaderSelector {
     private final AtomicBoolean autoRequeue = new AtomicBoolean(false);
     private final AtomicReference<State> state = new AtomicReference<State>(State.LATENT);
     private final AtomicReference<Future<?>> ourTask = new AtomicReference<Future<?>>(null);
-    private final ThreadLocal<String> curentSeqLocal = new ThreadLocal<String>();
+    private String curentNodePath;
     
     
     private enum State
@@ -179,11 +179,11 @@ public class ZKLeaderDelySelector implements LeaderSelector {
     
     private void addParticipantNode() {
        String path = client.create(leaderPath+"/nodes/1", id, CreateMode.EPHEMERAL_SEQUENTIAL);
-       curentSeqLocal.set(path);
+       curentNodePath = path;
     }
     
     private void removeParticipantNode() {
-        client.delete(leaderPath+"/nodes/"+curentSeqLocal.get());
+        client.delete(curentNodePath);
     }
     
     /**
@@ -212,7 +212,6 @@ public class ZKLeaderDelySelector implements LeaderSelector {
         lock.unlock();
         //从参与者节点列表中移除
         removeParticipantNode();
-        
         executorService.shutdown();
         ourTask.set(null);
     }

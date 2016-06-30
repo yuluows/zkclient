@@ -81,14 +81,14 @@ public class ZKLeaderDelaySelectorTest {
                         @Override
                         public void takeLeadership(ZKClient client, LeaderSelector selector) {
                             msgList.add(name+" I am the leader");
-                           
+                            System.out.println(name+": I am the leader-"+selector.getLeader());
+                            System.out.println(selector.getParticipantNodes());
                             try {
-                                Thread.sleep(1000);
+                                Thread.sleep(100);
                             } catch (InterruptedException e) {
                                 // TODO Auto-generated catch block
                                 e.printStackTrace();
                             }
-                            System.out.println(name+": I am the leader-"+selector.getLeader());
                             selector.close();
                             latch1.countDown();
                         }
