@@ -134,6 +134,7 @@ public class ZKDistributedLock implements ZKLock {
      */
     @Override
     public boolean unlock() {
+       client.unlistenChildChanges(lockPath, countListener);
        return client.delete(lockPath+"/"+currentSeq);
     }
     
