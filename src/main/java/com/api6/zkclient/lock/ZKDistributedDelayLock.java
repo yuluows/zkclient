@@ -166,7 +166,7 @@ public class ZKDistributedDelayLock implements ZKLock {
      * @return String
      */
     public String getLockPath(){
-        return lockPath;
+        return lockPath+"/lock";
     }
     
     /**
