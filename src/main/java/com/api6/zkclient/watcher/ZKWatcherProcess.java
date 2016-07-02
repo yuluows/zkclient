@@ -227,6 +227,12 @@ public class ZKWatcherProcess {
                             Object data = client.getData(path, null);
                             LOG.debug("Rewatched and return data   ["+path+" | "+data+" | EventType:"+eventType+"] by getData method");
                             listener.handle(path, eventType, data);
+                            
+                            //响应了删除事件，但是在再次注册监听之前节点又被创建了，这样是无法重新监听到节点创建的
+                            //这里主动触发节点创建事件。
+                            if (eventType == EventType.NodeDeleted && flag) {
+                                listener.handle(path, EventType.NodeCreated, data);
+                            }
                         } catch (ZKNoNodeException e) {
                             //如果是节点不存在了，则只移除，ZKChildDataListener监听器
                             client.unlistenNodeChanges(path, childDataChangeListners);
@@ -236,7 +242,7 @@ public class ZKWatcherProcess {
                             //如果是创建节点事件，并且在创建事件收到后，监听还没来得及重新注册，刚创建的节点已经被删除了。
                             //对于这种情况，客户端就无法重新监听到节点的删除事件的，这里做特殊处理
                             //主动触发删除的监听事件
-                            if(eventType == EventType.NodeCreated && !flag) {
+                            if (eventType == EventType.NodeCreated && !flag) {
                                 listener.handle(path, EventType.NodeDeleted, null);
                             }
                         }
