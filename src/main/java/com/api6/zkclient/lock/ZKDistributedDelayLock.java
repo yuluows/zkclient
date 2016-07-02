@@ -103,9 +103,14 @@ public class ZKDistributedDelayLock implements ZKLock {
                        try {
                            client.create(lockPath+"/lock", lockNodeData, CreateMode.EPHEMERAL);
                        } catch (ZKNodeExistsException e) {
-                           if (!lockNodeData.equals(client.getData(lockPath+"/lock"))) {//如果节点不是自己创建的，则证明已失去锁
-                               hasLock.set(false);
-                           }
+                           try {
+                               if (!lockNodeData.equals(client.getData(lockPath+"/lock"))) {//如果节点不是自己创建的，则证明已失去锁
+                                   hasLock.set(false);
+                               }
+                            } catch (ZKNoNodeException e2) {
+                                //ignore
+                            }
+                           
                        }
                    }
                }
