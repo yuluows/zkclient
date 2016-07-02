@@ -220,7 +220,7 @@ public class ZKWatcherProcess {
                     public void run() throws Exception {
                         //原生的zookeeper 的监听只生效一次，重新注册监听
                         LOG.debug("Rewatch the path ["+path+"] by exists method");
-                        client.exists(path, true);
+                        boolean flag = client.exists(path, true);
                         LOG.debug("Rewatched the path ["+path+"] by exists method");
                         try {
                             LOG.debug("Rewatch and get changed data [path:"+path+" | EventType:"+eventType+"] by getData method");
@@ -232,6 +232,13 @@ public class ZKWatcherProcess {
                             client.unlistenNodeChanges(path, childDataChangeListners);
                             //如果路径不存在，在调用client.getData(path,null)会抛出异常
                             listener.handle(path, eventType, null);
+                            
+                            //如果是创建节点事件，并且在创建事件收到后，监听还没来得及重新注册，刚创建的节点已经被删除了。
+                            //对于这种情况，客户端就无法重新监听到节点的删除事件的，这里做特殊处理
+                            //主动触发删除的监听事件
+                            if(eventType == EventType.NodeCreated && !flag) {
+                                listener.handle(path, EventType.NodeDeleted, null);
+                            }
                         }
                     }
                 };
