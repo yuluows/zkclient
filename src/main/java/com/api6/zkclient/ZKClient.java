@@ -805,9 +805,9 @@ public class ZKClient  {
     }
     
     /**
-     * 创建EPHEMERAL类型节点，该节点在连接断开后可重新自动创建。
+     * 创建EPHEMERAL类型节点，该节点在被服务器删除后，重新连接会被自动创建。
      * 而使用{@link ZKClient#create(String, Object, CreateMode)}创建的EPHEMERAL类型节点，
-     * 会在连接断开后消失，并且在重新连接后并不会重新创建。
+     * 会话失效后临时节点会被删除，并且在重新连接后并不会重新创建。
      * @param path 路径
      * @param data 数据
      * @param sequential 
@@ -828,9 +828,9 @@ public class ZKClient  {
     }
     
     /**
-     * 创建EPHEMERAL类型节点，该节点在连接断开后可重新自动创建。
+     * 创建EPHEMERAL类型节点，该节点在被服务器删除后，重新连接会被自动创建。
      * 而使用{@link ZKClient#create(String, Object, CreateMode)}创建的EPHEMERAL类型节点，
-     * 会在连接断开后消失，并且在重新连接后并不会重新创建。
+     * 会在会话失效后消失，并且在重新连接后并不会重新创建。
      * @param path 路径
      * @param data 数据
      * @param acl 访问控制配置

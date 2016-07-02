@@ -82,7 +82,11 @@ public class ZKDistributedDelayLockTest {
                     lock.lock();
                     System.out.println(Thread.currentThread().getName()+":lock....");
                     msgList.add(Thread.currentThread().getName()+":unlock");
-                  
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     System.out.println(Thread.currentThread().getName()+":unlock....");
                     lock.unlock();
                 }
@@ -106,6 +110,22 @@ public class ZKDistributedDelayLockTest {
     }
     
  
+    
+  /*  @Test
+    public void testDistributedDelayLock1() throws Exception{
+        final String lockPach = "/zk/delylock1";
+        ZKClient client = ZKClientBuilder.newZKClient()
+                .servers("192.168.1.102:2181")
+                .sessionTimeout(10000)
+                .build();
+        client.createRecursive(lockPach, null, CreateMode.PERSISTENT);
+        ZKDistributedDelayLock lock = ZKDistributedDelayLock.newInstance(client, lockPach);
+        lock.lock();
+        System.out.println("sleep");
+        Thread.sleep(20000);
+        System.out.println(client.getData(lockPach+"/lock"));
+        
+    }*/
     
     
 }

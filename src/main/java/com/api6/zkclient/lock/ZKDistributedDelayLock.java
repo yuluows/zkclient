@@ -15,6 +15,7 @@
  */
 package com.api6.zkclient.lock;
 
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,8 +38,8 @@ import com.api6.zkclient.listener.ZKStateListener;
 /**
  * 带延迟获取的分布式锁
  * 此分布式锁主要针对网络闪断的情况。
- * 不带延迟功能的分布式锁：某个线程获取了分布式锁，但是网络出现2秒的断开，只要网络断开就会释放锁。
- * 带延迟功能的分布式锁：例如设置了delayTimeMillis的值为5000，那么只要网络断开没有超过这个延迟时间，则当前线程还有依旧可以重新获得锁。
+ * 不带延迟功能的分布式锁：某个线程获取了分布式锁,在网络发生闪断，ZooKeeper删除了临时节点，那么就会释放锁。
+ * 带延迟功能的分布式锁：例如设置了delayTimeMillis的值为5000，那么在发生网络闪断ZooKeeper删除了临时节点后5秒内重新连上，则当前线程还有依旧可以重新获得锁。
  * 
  * 非线程安全，每个线程请单独创建实例
  * @author: zhaojie/zh_jie@163.com.com 
@@ -53,7 +54,8 @@ public class ZKDistributedDelayLock implements ZKLock {
     private final String lockPath;
     private Semaphore semaphore;
     private final AtomicBoolean hasLock = new AtomicBoolean(false);
-    private String lockNodeData;
+    //锁的值一定要唯一,且不允许为null，这里采用UUID
+    private String lockNodeData = UUID.randomUUID().toString();
     private final AtomicInteger delayTimeMillis = new AtomicInteger(0);
     
     private  ZKDistributedDelayLock(final ZKClient client,String lockPach) {
@@ -101,7 +103,9 @@ public class ZKDistributedDelayLock implements ZKLock {
                        try {
                            client.create(lockPath+"/lock", lockNodeData, CreateMode.EPHEMERAL);
                        } catch (ZKNodeExistsException e) {
-                           hasLock.set(false);
+                           if (!lockNodeData.equals(client.getData(lockPath+"/lock"))) {//如果节点不是自己创建的，则证明已失去锁
+                               hasLock.set(false);
+                           }
                        }
                    }
                }
@@ -111,7 +115,8 @@ public class ZKDistributedDelayLock implements ZKLock {
             public void handleSessionError(Throwable error) throws Exception {}
             
             @Override
-            public void handleNewSession() throws Exception {}
+            public void handleNewSession() throws Exception {
+            }
         };
     }
     
@@ -196,10 +201,24 @@ public class ZKDistributedDelayLock implements ZKLock {
     }
 
     
+    /**
+     * 设置锁存储的值，一定要唯一，且不允许为null
+     *默认使用UUID动态生成
+     * @param lockNodeData 
+     * @return void
+     */
     public void setLockNodeData(String lockNodeData){
+       if(lockNodeData==null){
+           throw new ZKException("lockNodeData can not be null!");
+       }
        this.lockNodeData = lockNodeData;
     }
     
+    /**
+     * 判断是否持有锁
+     * @return 
+     * @return boolean
+     */
     public boolean hasLock(){
         return hasLock.get();
     }

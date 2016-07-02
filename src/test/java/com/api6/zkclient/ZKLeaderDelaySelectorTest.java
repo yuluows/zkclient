@@ -128,11 +128,6 @@ public class ZKLeaderDelaySelectorTest {
     }
     
     
-    /**
-     * 由于具有延迟选举的功能，只要Leader重连的时间没有超过超时时间3秒，则之前leader所在线程重连后依旧是Leader
-     * @throws Exception 
-     * @return void
-     */
     @Test
     public void testZKLeaderDelaySeletor1() throws Exception{
         final String leaderPath = "/zk/leader";
