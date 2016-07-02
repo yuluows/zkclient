@@ -67,26 +67,21 @@ public class ZKDistributedDelayLock implements ZKLock {
             
             @Override
             public void handleDataDeleted(String path) throws Exception {
-                /*//同步方式
-                 if(!hasLock()){//如果当前没有持有锁
-                    //为了解决网络闪断问题，先等待一段时间，再重新竞争锁
-                    Thread.currentThread().sleep(delayTimeMillis.longValue());
-                    semaphore.release();
-                }*/
-                
-                //异步方式
-                executorService.submit(new Callable<Void>() {
-                    @Override
-                    public Void call() throws Exception {
-                        if(!hasLock()){//如果当前没有持有锁
-                            //为了解决网络闪断问题，先等待一段时间，再重新竞争锁
-                            Thread.currentThread().sleep(delayTimeMillis.longValue());
-                            //如果之前获得锁的线程解除了锁定，则所有等待的线程都重新尝试，这里使得信号量加1
-                            semaphore.release();
-                        }
-                        return null;
-                    }
-               });
+               if( !executorService.isTerminated() ){//如果没有取消获取锁
+                 //异步方式
+                   executorService.submit(new Callable<Void>() {
+                       @Override
+                       public Void call() throws Exception {
+                           if(!hasLock()){//如果当前没有持有锁
+                               //为了解决网络闪断问题，先等待一段时间，再重新竞争锁
+                               Thread.sleep(delayTimeMillis.longValue());
+                               //如果之前获得锁的线程解除了锁定，则所有等待的线程都重新尝试，这里使得信号量加1
+                               semaphore.release();
+                           }
+                           return null;
+                       }
+                  });
+               }
             }
             
             @Override
@@ -212,11 +207,11 @@ public class ZKDistributedDelayLock implements ZKLock {
     @Override
     public boolean unlock() {
         if(hasLock()){
+            hasLock.set(false);
             client.unlistenNodeChanges(lockPath+"/lock", nodeListener);
             client.unlistenStateChanges(stateListener);
             executorService.shutdownNow();
             boolean flag = client.delete(lockPath+"/lock");
-            hasLock.set(false);
             return flag;
         }
         throw new ZKException("not locked can not unlock!");
