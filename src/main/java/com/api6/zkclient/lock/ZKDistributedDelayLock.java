@@ -98,20 +98,28 @@ public class ZKDistributedDelayLock implements ZKLock {
             @Override
             public void handleStateChanged(KeeperState state) throws Exception {
                if(state == KeeperState.SyncConnected){//如果重新连接
-                   if(hasLock.get()){//现在持有锁
-                      //重新创建节点
-                       try {
-                           client.create(lockPath+"/lock", lockNodeData, CreateMode.EPHEMERAL);
-                       } catch (ZKNodeExistsException e) {
-                           try {
-                               if (!lockNodeData.equals(client.getData(lockPath+"/lock"))) {//如果节点不是自己创建的，则证明已失去锁
-                                   hasLock.set(false);
-                               }
-                            } catch (ZKNoNodeException e2) {
-                                //ignore
-                            }
-                           
-                       }
+                   if( !executorService.isTerminated() ){//如果没有取消获取锁
+                       //异步方式
+                         executorService.submit(new Callable<Void>() {
+                             @Override
+                             public Void call() throws Exception {
+                                 if(hasLock.get()){//现在持有锁
+                                     //重新创建节点
+                                      try {
+                                          client.create(lockPath+"/lock", lockNodeData, CreateMode.EPHEMERAL);
+                                      } catch (ZKNodeExistsException e) {
+                                          try {
+                                              if (!lockNodeData.equals(client.getData(lockPath+"/lock"))) {//如果节点不是自己创建的，则证明已失去锁
+                                                  hasLock.set(false);
+                                              }
+                                           } catch (ZKNoNodeException e2) {
+                                               //ignore
+                                           }
+                                      }
+                                  }
+                                 return null;
+                             }
+                         });
                    }
                }
             }
